@@ -1,0 +1,21 @@
+# Demo Input: Escalation Context
+# Use with: @stakeholder-communicator-risk → Escalation Draft
+
+---
+Issue: The staging environment has been misconfigured for 5 days (Firebase project ID pointing to production). This is blocking two developers (Mihai and Dan) from testing their sprint work.
+
+Ticket raised: INFRA-402, opened June 2, currently assigned to the infrastructure team.
+
+What we've tried:
+- Ticket opened June 2 via the standard infra board
+- PM followed up directly with Ciprian (Infra Lead) on June 3 via Slack – acknowledged, no action yet
+- SM sent a reminder on June 4 – Ciprian said he'd "look at it today", no update since
+
+Current impact:
+- Sprint 13 goal is at risk. The notification service (Mihai) and the data migration tests (Dan) are both blocked.
+- If unresolved by June 9, we will not have time to complete QA before sprint end on June 20.
+- We're also not able to validate the deployment pipeline for the July 11 beta.
+
+Escalation target: Paul (Head of Engineering)
+
+What we need: Either Ciprian is given the capacity to resolve this today, or someone with production access updates the staging config directly.

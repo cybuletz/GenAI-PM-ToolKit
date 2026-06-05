@@ -1,0 +1,19 @@
+# Demo Input: Daily Standup – Day 3 of Sprint 13
+# Use with: @scrum-master-facilitator → Standup Analysis
+
+Date: Tuesday, June 10
+Sprint 13 – Day 3 of 10 working days
+
+---
+Ana: Finished the login flow refactor. Starting on the token refresh edge cases today. Should be done by EOD.
+
+Mihai: Still on the notification service. Ran into an issue with the Firebase config – waiting on DevOps to update the env vars in staging. Can't move forward without it. Raised the ticket yesterday, no response yet.
+
+Radu: Reviewed Ana's PR, left comments. Now working on the export feature. Feeling a bit stretched – also picked up the hotfix from last week that's still open.
+
+Ioana: On leave today, back tomorrow.
+
+Dan: Finished database migration script. Testing locally. Will push to staging once Mihai's env issue is sorted – our tests share the same staging env.
+
+---
+Note: Sprint goal is to complete the notification service and the user export feature by end of sprint.
