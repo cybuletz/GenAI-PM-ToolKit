@@ -1,0 +1,20 @@
+# Demo Input: Impediment – Email from Team Member
+# Use with: @scrum-master-facilitator → Impediment Log Entry
+
+---
+From: mihai.pop@company.com
+To: pm@company.com
+Subject: Still blocked on staging env – need help
+
+Hi,
+
+Just a heads-up — I've been blocked on the notification service since yesterday afternoon. The Firebase environment variables in our staging environment are wrong (the project ID is pointing to prod), and I can't test anything until DevOps updates them.
+
+I opened a ticket in the infra board (INFRA-402) but haven't heard back. I don't have access to update it myself.
+
+If this isn't resolved by tomorrow morning, it's going to affect Dan's testing as well since we share the same staging setup. The notification work was supposed to be done by Wednesday – I'm already one day behind.
+
+Can you help escalate this?
+
+Thanks,
+Mihai

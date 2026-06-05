@@ -1,0 +1,26 @@
+# Demo Input: Sprint 12 Retrospective Notes
+# Use with: @scrum-master-facilitator → Retrospective Synthesis
+
+Format: Mad / Sad / Glad (physical board, notes taken by SM)
+
+---
+GLAD
+- We actually hit the sprint goal for the first time in 3 sprints
+- The daily standups have been shorter and more focused
+- Ana and Radu's collaboration on the auth module worked really well
+- Finally got stable staging environment (for most of the sprint)
+
+SAD
+- Stories were too big – we kept splitting things mid-sprint
+- The Thursday deployment took 3 hours because of a manual step no one documented
+- Dan felt isolated working on the DB side – not enough visibility to the rest of the team
+- Estimation is still off – we over-committed again by about 8 points
+
+MAD
+- The infra team SLA for tickets is 3 days – that's too slow for blocking issues
+- We had to re-explain the same context to stakeholders twice because the status report wasn't clear
+- Review queue piled up on Thursday – 5 PRs waiting, nobody had time
+
+---
+Velocity: Committed 42 pts / Completed 38 pts
+Sprint goal: Achieved (core feature delivered, one story deferred by agreement)

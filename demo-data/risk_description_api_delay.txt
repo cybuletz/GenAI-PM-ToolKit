@@ -1,0 +1,15 @@
+# Demo Input: Risk Description – Third-Party API Delay
+# Use with: @stakeholder-communicator-risk → Risk Communication
+
+---
+Risk: Our payment processing integration depends on an API from FinPay (external vendor). We just learned that FinPay is updating their API to v3 in late July, and v2 (the version we're building against) will be deprecated on August 31.
+
+We started building against v2 because v3 wasn't stable when we scoped this work. Their documentation for v3 is still marked "draft" and some endpoints are not yet finalized.
+
+If we migrate to v3 before go-live, we need to re-test the entire payment flow – estimated 2–3 weeks of rework. If we go live on v2 and migrate after, we're looking at a forced migration in August during a critical adoption period.
+
+Probability: High (this will definitely happen; the only question is timing)
+Impact: Could delay customer-facing payment features or create technical debt immediately post-launch
+
+We've already reached out to FinPay for a private preview of the v3 final spec – waiting to hear back.
+One option is to build an abstraction layer now that would make the migration lighter.

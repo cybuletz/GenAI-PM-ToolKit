@@ -1,0 +1,18 @@
+# Demo Input: Velocity Data – Last 5 Sprints
+# Use with: @scrum-master-health-tracker → Velocity Review
+
+Team: Backend + Mobile (4 devs + 1 QA)
+Sprint duration: 2 weeks
+
+| Sprint | Committed | Completed | Notes |
+|--------|-----------|-----------|-------|
+| S8     | 44        | 41        | Normal sprint |
+| S9     | 46        | 28        | Two team members at conference, one sick day |
+| S10    | 38        | 37        | Planned lower commitment after S9 |
+| S11    | 40        | 39        | Smooth sprint, good estimation |
+| S12    | 42        | 38        | One story deferred by agreement (not a miss) |
+
+Notes:
+- Team has been stable in composition for last 4 months
+- S9 was the outlier due to external factors, not process issues
+- No major changes coming in S13

@@ -1,0 +1,17 @@
+# Demo Input: Delay Notification
+# Use with: @stakeholder-communicator-risk → Delay Notification
+
+---
+What's delayed: Mobile app release (iOS + Android) – the customer-facing v1.0 that was committed to the pilot customers
+
+Original target: July 25
+
+New expected date: August 8 (2-week slip)
+
+Root cause: The iOS submission was rejected by Apple on June 4 due to a missing privacy manifest for third-party SDK usage (new Apple requirement introduced in May 2024). We were not aware of this requirement when we planned the release. The fix requires updating the manifest, re-testing, and re-submitting – Apple's review cycle is typically 7–10 days.
+
+Impact: Three pilot customers were expecting the app on July 25. Two of them have internal demos planned around that date.
+
+What we're doing: Updated the privacy manifest, running regression tests this week, plan to resubmit by June 16. Android is unaffected and will release as planned.
+
+Stakeholder communication needed: Pilot customers + internal sponsor (Elena)

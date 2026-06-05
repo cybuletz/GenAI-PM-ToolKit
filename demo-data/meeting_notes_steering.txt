@@ -1,0 +1,23 @@
+# Demo Input: Steering Committee Meeting Notes
+# Use with: @stakeholder-communicator-reporter → Meeting Follow-Up
+
+Meeting: Project Steering Committee – Customer Portal Rebuild
+Date: June 5, 2026
+Attendees: Elena (Sponsor), Paul (Head of Engineering), Maria (PM – note taker), Andrei (Sales Lead), Ciprian (IT Infra)
+
+---
+Elena opened by asking for an update on the August 1 pilot timeline.
+
+Maria confirmed the team is on track for the July 11 beta. Noted that the August 1 pilot depends on the beta feedback cycle being short.
+
+Andrei raised that two pilot customers have asked about SSO (single sign-on) support. Currently not in scope. He asked if it could be added before the pilot.
+
+Paul flagged that SSO is at minimum a 3-week effort and would push the pilot to late August at the earliest.
+
+Decision: SSO will not be included in the August pilot. Andrei will communicate this to the two customers with a commitment that SSO is on the Q4 roadmap.
+
+Ciprian confirmed infra ticket INFRA-402 (staging env) will be resolved by June 9.
+
+Elena asked for a short written update every Friday before 12:00 – one paragraph max. Maria agreed.
+
+No formal follow-up meeting scheduled; next steering call is July 3.

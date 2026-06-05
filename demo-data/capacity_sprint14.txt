@@ -1,0 +1,16 @@
+# Demo Input: Capacity Planning – Sprint 14
+# Use with: @scrum-master-health-tracker → Capacity Planning
+
+Sprint 14: June 23 – July 4 (10 working days)
+Public holiday: June 24 (National Day – 1 day off for everyone)
+
+Team:
+- Ana (Senior Dev): Full availability, 9 working days (9d)
+- Mihai (Dev): On leave June 23–24, back June 25, 8 working days
+- Radu (Dev): Full availability, 9 working days
+- Dan (Dev): Part-time June 30 and July 1 (offsite onboarding another project), ~7.5 working days
+- Ioana (QA): Full availability, 9 working days
+
+Note: Ana is the only person who can review the mobile auth work. Radu is the only one with DB migration access.
+
+Historical velocity reference: ~38–41 points per sprint at full capacity (5 people, 10 days).

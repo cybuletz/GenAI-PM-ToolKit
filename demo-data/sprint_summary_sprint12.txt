@@ -1,0 +1,24 @@
+# Demo Input: Sprint 12 Completion Summary
+# Use with: @stakeholder-communicator-reporter → Sprint Status Report OR Executive Summary
+
+---
+Project: Customer Portal Rebuild
+Sprint 12 – completed June 6, 2026
+
+Delivered:
+- User authentication module (login, logout, session handling) – fully tested, deployed to staging
+- Password reset flow – completed and passed QA
+- User profile export feature (CSV) – completed, pending final stakeholder review
+- Performance improvement on the dashboard load (reduced from ~4.2s to ~1.8s)
+
+Not delivered (deferred by agreement with PO):
+- Bulk notification preferences UI – moved to Sprint 13, no customer commitment affected
+
+Open blockers going into Sprint 13:
+- Staging environment still has occasional Firebase config issues (infra ticket open)
+
+Upcoming milestones:
+- Beta release to 50 internal users: target July 11
+- Customer pilot (5 accounts): target August 1
+
+Sprint velocity: 38 / 42 committed (91%)
