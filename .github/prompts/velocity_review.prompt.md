@@ -10,9 +10,7 @@ Analyze the sprint velocity data below and provide a trend assessment and foreca
 
 ## Input
 
-```
-{{velocity_data}}
-```
+Paste your sprint velocity data and team availability information here.
 
 *(provide sprint-by-sprint story point data: committed vs. completed. Can be a table, bullet list, or screenshot description)*
 
