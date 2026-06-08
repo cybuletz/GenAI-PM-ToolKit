@@ -29,9 +29,8 @@ This agent focuses on the **metrics and people side** of the Scrum Master role. 
 - When you want a trend-based forecast for delivery
 
 ## Prompts Available
-- `05_velocity_review` – calculate velocity trend and forecast next sprint
-- `06_capacity_planning` – assess available capacity factoring in leaves and changes
-- `07_team_health_check` – evaluate morale and workload signals from feedback
+- `velocity_review` – calculate velocity trend and forecast next sprint
+- `capacity_planning` – assess available capacity factoring in leaves and changes
 
 ## How to Invoke
 

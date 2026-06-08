@@ -32,10 +32,7 @@ The goal is always: no surprises. Communicate early, give context, show mitigati
 - When you've received a difficult email and need to draft a response
 
 ## Prompts Available
-- `05_risk_communication` – draft a stakeholder-facing risk notice with options
-- `06_delay_notification` – communicate a timeline slip with context and next steps
-- `07_scope_change_impact` – assess and communicate the impact of a change request
-- `08_escalation_draft` – draft a professional escalation message
+*(No prompts are currently available for this agent. Prompts will be listed here once added to `.github/prompts/`.)*
 
 ## How to Invoke
 

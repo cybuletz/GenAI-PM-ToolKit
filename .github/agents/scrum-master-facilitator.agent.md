@@ -29,10 +29,7 @@ This agent focuses on the **ceremony and process side** of Scrum. It processes s
 - When you want a sprint planning checklist or ceremony agenda
 
 ## Prompts Available
-- `01_standup_analysis` – parse standup updates, surface blockers
-- `02_impediment_log` – log and classify a blocker, assign owner
-- `03_retro_synthesis` – turn retro notes into structured action items
-- `04_sprint_planning_prep` – generate a planning meeting checklist
+*(No prompts are currently available for this agent. Prompts will be listed here once added to `.github/prompts/`.)*
 
 ## How to Invoke
 

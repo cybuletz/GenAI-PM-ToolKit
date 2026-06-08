@@ -35,10 +35,7 @@ This is the agent for:
 - When you receive an email asking "where are we on X?"
 
 ## Prompts Available
-- `01_sprint_status_report` – full structured status report from sprint data
-- `02_executive_summary` – 3-paragraph narrative for C-level or senior stakeholders
-- `03_milestone_announcement` – short communication for a completed milestone
-- `04_meeting_followup` – post-meeting summary with decisions and next steps
+- `executive_status_report` – full structured executive status report from sprint or project data (covers sprint status, executive summary, key metrics, risks, and decisions needed)
 
 ## How to Invoke
 
