@@ -1,6 +1,6 @@
 ---
 mode: agent
-agent: scrum-master-health-tracker
+agent: scrum-master-metrics
 description: Assess team capacity for an upcoming sprint considering leaves, part-time availability, and known constraints.
 ---
 

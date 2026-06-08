@@ -1,6 +1,6 @@
 ---
 mode: agent
-agent: scrum-master-health-tracker
+agent: scrum-master-metrics
 description: Review sprint velocity data and forecast next sprint capacity.
 ---
 
