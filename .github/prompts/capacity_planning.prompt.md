@@ -10,9 +10,7 @@ Calculate available capacity for the upcoming sprint.
 
 ## Input
 
-```
-{{capacity_input}}
-```
+Paste your sprint team availability information here. Include details such as team members, working days in the sprint, any planned leaves, part-time days, or other constraints.
 
 *(list team members, working days in sprint, any leaves, part-time days, or other constraints. Can be free text, a table, or a screenshot)*
 
