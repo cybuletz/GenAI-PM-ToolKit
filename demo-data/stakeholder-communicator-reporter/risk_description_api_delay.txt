@@ -1,0 +1,28 @@
+# Demo Input: Risk Description – API Delay
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Risk ID: RISK-007
+Risk title: Third-party PDF library legal review delay
+Date identified: June 10, 2026
+Owner: PM – Cosmin Budrica
+
+---
+DESCRIPTION
+The PDF export feature requires integration with a third-party library (PDFSharp Enterprise).
+Legal review was requested on May 22. As of June 10, no response has been received (19 days).
+The feature cannot be shipped without legal sign-off due to licensing compliance requirements.
+
+LIKELIHOOD: High (review is already overdue with no ETA)
+IMPACT: High (PDF export is a committed Q2 deliverable; delay affects client demo scheduled July 15)
+
+CURRENT STATUS
+- Legal team contacted twice (May 22 and June 5). No response.
+- PM escalated to Head of Legal on June 10.
+- Development is complete and waiting — no further dev work is blocked.
+
+RESPONSE OPTIONS
+1. Continue waiting — risk missing the July 15 demo
+2. Proceed with fallback: build in-house PDF generation (est. 5 extra story points, no licensing risk)
+3. Replace with a library already approved by legal (options being researched)
+
+DECISION NEEDED BY: June 20 to allow Sprint 14 replanning if fallback is chosen

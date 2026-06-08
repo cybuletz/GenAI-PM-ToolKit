@@ -1,22 +1,45 @@
 # Demo Data
 
-This folder contains sample inputs you can use to demonstrate the Scrum Master and Stakeholder Communicator agents to your team or management.
+This folder contains sample input files for testing and demonstrating the GenAI PM Toolkit agents.
 
-Each file represents a realistic scenario. Copy the content and use it as agent input.
+Files are organised by agent. Each subfolder maps directly to one agent in `.github/agents/`.
 
-## Files Overview
+---
 
-| File | Agent | Scenario |
-|------|-------|----------|
-| `standup_notes_day3.txt` | Scrum Master – Facilitator | Day 3 standup with a hidden blocker |
-| `impediment_email.txt` | Scrum Master – Facilitator | Email describing a production access blocker |
-| `retro_notes_sprint12.txt` | Scrum Master – Facilitator | Sprint 12 retrospective board export |
-| `velocity_data_last5sprints.txt` | Scrum Master – Health Tracker | 5 sprints of velocity with a dip in S9 |
-| `capacity_sprint14.txt` | Scrum Master – Health Tracker | Capacity table with two partial-week absences |
-| `team_feedback_anonymous.txt` | Scrum Master – Health Tracker | Anonymous retro mood data showing stress signals |
-| `sprint_summary_sprint12.txt` | Stakeholder Communicator – Reporter | Sprint 12 completion summary for status report |
-| `meeting_notes_steering.txt` | Stakeholder Communicator – Reporter | Steering committee meeting notes |
-| `risk_description_api_delay.txt` | Stakeholder Communicator – Risk | Third-party API integration risk |
-| `delay_notification_input.txt` | Stakeholder Communicator – Risk | Mobile release 2-week delay scenario |
-| `scope_change_request.txt` | Stakeholder Communicator – Risk | New feature request mid-sprint from sales |
-| `escalation_context_infra.txt` | Stakeholder Communicator – Risk | Infrastructure access blocked for 5 days |
+## scrum-master-metrics/
+
+Use with the `scrum-master-metrics` agent.
+
+| File | Prompt |
+|---|---|
+| `velocity_data_last5sprints.txt` | `velocity_review` |
+| `velocity_data_sprints8to12.txt` | `velocity_review` |
+| `capacity_sprint14.txt` | `capacity_planning` |
+| `capacity_sprint15.txt` | `capacity_planning` |
+
+**How to use:**
+1. Open the prompt file in VS Code (`.github/prompts/velocity_review.prompt.md` or `capacity_planning.prompt.md`)
+2. Click **▶ Run Prompt**
+3. When prompted for input, reference the demo file — e.g. `Use the data in demo-data/scrum-master-metrics/velocity_data_last5sprints.txt`
+
+---
+
+## stakeholder-communicator-reporter/
+
+Use with the `stakeholder-communicator-reporter` agent.
+
+| File | What it simulates |
+|---|---|
+| `sprint_summary_sprint12.txt` | End-of-sprint status report input |
+| `sprint_summary_sprint13.txt` | Partially missed sprint with carried stories |
+| `meeting_notes_steering.txt` | Steering committee meeting notes |
+| `project_status_q2_checkpoint.txt` | Q2 milestone checkpoint for exec audience |
+| `delay_notification_input.txt` | Feature delay communication |
+| `escalation_context_infra.txt` | Internal escalation context |
+| `risk_description_api_delay.txt` | Risk log entry for stakeholder update |
+| `scope_change_request.txt` | Scope change request with impact analysis |
+
+**How to use:**
+1. Open `.github/prompts/executive_status_report.prompt.md` in VS Code
+2. Click **▶ Run Prompt**
+3. Reference the demo file — e.g. `Use the data in demo-data/stakeholder-communicator-reporter/sprint_summary_sprint13.txt`

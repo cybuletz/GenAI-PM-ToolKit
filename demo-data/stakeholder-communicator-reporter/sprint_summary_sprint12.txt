@@ -1,0 +1,31 @@
+# Demo Input: Sprint 12 Summary
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Sprint 12 – Platform Squad
+Dates: May 26 – June 6
+Sprint Goal: Deliver authentication module rewrite and begin notification service
+
+---
+COMPLETED
+- Authentication module rewrite – core flows (13 pts)
+- Login/logout session handling (5 pts)
+- Password reset flow (3 pts)
+- Notification service – initial setup and architecture (5 pts)
+
+IN PROGRESS / CARRIED OVER
+- Notification service – email delivery (8 pts) — carried to Sprint 13
+
+VELOCITY
+  Committed: 42 pts
+  Completed: 26 pts (sprint goal partially met — auth delivered, notification deferred)
+
+BLOCKERS
+- Notification service blocked mid-sprint by Firebase staging misconfiguration (DevOps ticket INFRA-402, resolved Day 7)
+
+RISKS
+- Notification service now 1 sprint behind original plan
+- Firebase config dependency is a recurring risk — single person (Mihai) owns it
+
+TEAM NOTES
+  Morale: Good despite the blocker. Auth delivery was a team win.
+  Estimation: Over-committed by ~16 pts due to the blocker.

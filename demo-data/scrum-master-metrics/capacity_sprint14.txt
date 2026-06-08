@@ -1,0 +1,32 @@
+# Demo Input: Capacity Planning – Sprint 14
+# Use with: scrum-master-metrics → capacity_planning
+
+Sprint 14 dates: June 9 – June 20 (10 working days)
+Team: Platform Squad
+
+---
+Ana Ionescu – Senior Developer
+  Working days: 10
+  Leave: None
+
+Mihai Pop – Developer
+  Working days: 10
+  Leave: None
+  Notes: Firebase integration owner.
+
+Radu Gheorghe – Developer
+  Working days: 9
+  Leave: 1 day (June 13, personal)
+  Notes: Also covering support rotation ~20% of time.
+
+Ioana Marin – QA Engineer
+  Working days: 10
+  Leave: None
+
+Dan Stanciu – Backend Developer
+  Working days: 10
+  Leave: None
+
+---
+Team average velocity (last 3 sprints): 35 story points
+Planning buffer assumption: 15%

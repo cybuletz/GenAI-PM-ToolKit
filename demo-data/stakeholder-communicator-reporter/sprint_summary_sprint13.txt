@@ -1,0 +1,34 @@
+# Demo Input: Sprint 13 Summary
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Sprint 13 – Platform Squad
+Dates: June 9 – June 20
+Sprint Goal: Complete notification service and user export feature
+
+---
+COMPLETED
+- Notification service – email delivery (8 pts)
+- Notification service – push delivery (5 pts)
+- User export feature – CSV format (8 pts)
+- Token refresh edge case handling (3 pts)
+- Database migration script – prod deployment (5 pts)
+
+IN PROGRESS / CARRIED OVER
+- User export feature – PDF format (5 pts) — 60% complete, carried to Sprint 14
+- Notification preferences UI (3 pts) — not started, deprioritised by PO
+
+VELOCITY
+  Committed: 37 pts
+  Completed: 29 pts (sprint goal partially met — core notification service delivered, export PDF deferred)
+
+BLOCKERS ENCOUNTERED
+- Firebase staging env misconfiguration blocked Mihai for 1.5 days (resolved Day 4)
+- PDF export dependency on a third-party library required legal sign-off (still pending)
+
+RISKS GOING INTO SPRINT 14
+- PDF library legal review still open — blocks PDF export completion
+- Ioana (QA) unavailable last 2 days of Sprint 15 — testing window at risk if stories slip
+
+TEAM NOTES
+  Morale: Good. Team hit the core sprint goal despite early blocker.
+  Estimation: Slightly over-committed. PDF story complexity was underestimated.

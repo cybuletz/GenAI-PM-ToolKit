@@ -1,0 +1,24 @@
+# Demo Input: Escalation Context – Infrastructure Delay
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Escalation type: Internal – Infrastructure team SLA breach
+Raised by: PM (Cosmin Budrica)
+Date: June 3, 2026
+
+---
+SITUATION
+Ticket INFRA-402 was raised on June 2 to fix a misconfigured Firebase staging environment.
+The infrastructure team SLA for P2 tickets is 24 hours.
+As of June 3 (Day 2), the ticket has not been actioned and the developer is still blocked.
+
+IMPACT
+- Developer (Mihai Pop) has been blocked for 1.5 days
+- Sprint 12 goal is now at risk — notification service delivery may slip to Sprint 13
+- A second developer (Dan Stanciu) will be blocked by end of day if the env is not fixed
+
+ACTION REQUESTED
+Escalating to Infrastructure Team Lead to prioritise INFRA-402 today.
+If not resolved by EOD June 3, requesting CTO awareness given sprint goal impact.
+
+PREVIOUS OCCURRENCE
+Similar staging env issue occurred in Sprint 10. Root cause was not fully addressed at the time.

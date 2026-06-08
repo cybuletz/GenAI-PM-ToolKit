@@ -1,0 +1,29 @@
+# Demo Input: Steering Committee Meeting Notes
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Meeting: Steering Committee – Monthly Check-in
+Date: June 5, 2026
+Attendees: Elena Vasilescu (Sponsor), Andrei Moldovan (CTO), Cosmin Budrica (PM), Radu Gheorghe (Tech Lead)
+
+---
+AGENDA ITEMS
+
+1. Project status update
+   - Authentication module rewrite delivered on time
+   - Notification service 1 sprint behind due to infrastructure blocker
+   - Q2 target still achievable if PDF export legal issue resolved by June 20
+
+2. Budget review
+   - Spent: €98,400 of €180,000 approved (54.7%)
+   - On track. No change requests pending.
+
+3. Risks discussed
+   - Legal review of PDF library flagged as top risk. PM to follow up with legal by June 10.
+   - Contractor (Dan Stanciu) contract ends June 30. Sponsor asked PM to assess renewal vs. internalize.
+
+4. Decisions made
+   - Approved: defer notification preferences UI to Q3 backlog
+   - Approved: PM to proceed with contractor renewal assessment, report back June 19
+   - Deferred: reporting dashboard scope — not enough detail yet, revisit in July steering
+
+NEXT MEETING: July 3, 2026

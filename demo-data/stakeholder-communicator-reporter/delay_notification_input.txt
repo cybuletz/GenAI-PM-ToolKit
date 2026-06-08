@@ -1,0 +1,26 @@
+# Demo Input: Delay Notification
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Context: The notification service feature has slipped by one sprint due to an infrastructure blocker.
+This input is used to draft a stakeholder communication about the delay.
+
+---
+Feature: Notification Service
+Original delivery: End of Sprint 12 (June 6)
+Revised delivery: End of Sprint 13 (June 20)
+Delay: 1 sprint (~2 weeks)
+
+Root cause:
+The Firebase staging environment was misconfigured — the project ID was pointing to production.
+This blocked the developer (Mihai) for approximately 1.5 days while waiting for DevOps to resolve it (ticket INFRA-402).
+The issue was resolved on Day 4 of Sprint 12, but by that point the sprint goal was no longer achievable.
+
+Impact:
+- Email and push notification delivery delayed by one sprint
+- No impact on authentication module (delivered as planned)
+- Downstream dependency: notification preferences UI now pushed to Q3
+
+Mitigation taken:
+- INFRA-402 resolved and staging environment validated
+- DevOps team added env config to their sprint checklist going forward
+- PM reviewed sprint commitment for Sprint 13 to ensure realistic target

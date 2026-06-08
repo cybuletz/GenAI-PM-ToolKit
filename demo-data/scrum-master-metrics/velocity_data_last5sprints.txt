@@ -1,0 +1,32 @@
+# Demo Input: Velocity Data – Last 5 Sprints
+# Use with: scrum-master-metrics → velocity_review
+
+Team: Platform Squad (5 members)
+Sprint length: 2 weeks
+
+---
+Sprint 8
+  Committed: 42 pts
+  Completed: 38 pts
+
+Sprint 9
+  Committed: 40 pts
+  Completed: 35 pts
+  Notes: One team member on sick leave for 3 days.
+
+Sprint 10
+  Committed: 38 pts
+  Completed: 38 pts
+
+Sprint 11
+  Committed: 44 pts
+  Completed: 29 pts
+  Notes: Unplanned production incident mid-sprint consumed ~2.5 days of dev time.
+
+Sprint 12
+  Committed: 38 pts
+  Completed: 37 pts
+  Notes: Stable sprint, no major interruptions.
+
+---
+Context: Team carries ~10-15% overhead for ceremonies, code review, and support rotation.

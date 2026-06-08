@@ -1,0 +1,32 @@
+# Demo Input: Scope Change Request
+# Use with: stakeholder-communicator-reporter → executive_status_report
+
+Change request ID: CR-004
+Requested by: Elena Vasilescu (Project Sponsor)
+Date: June 8, 2026
+Priority: High
+
+---
+REQUEST
+Add a real-time dashboard to the Customer Portal showing live notification delivery status.
+The sponsor wants this included in the Q2 delivery for the July 15 client demo.
+
+CURRENT SCOPE
+The reporting dashboard was originally scoped for Q3. It does not appear in any current sprint backlog.
+
+ESTIMATED IMPACT
+- Development effort: ~18–22 story points (3–4 sprint stories)
+- At current velocity (~35 pts/sprint), this represents roughly 60% of one sprint
+- To fit in Q2, it would need to start Sprint 14 — which begins June 23
+- Sprint 14 is already planned with committed stories
+
+RISKS IF ACCEPTED
+- Displaces 18–22 pts of already-committed Sprint 14 work
+- Team has not yet designed the dashboard — no architecture review done
+- Adds pressure ahead of July 15 demo with no buffer for issues
+
+RECOMMENDATION
+Accept a reduced scope: read-only status summary (not real-time) — estimated 8 pts, feasible in Sprint 14 if one lower-priority story is deferred.
+Full real-time dashboard remains in Q3.
+
+DECISION NEEDED FROM SPONSOR BY: June 12
