@@ -1,0 +1,11 @@
+# Google auth — never commit these
+tools/survey/token.json
+tools/survey/credentials.json
+tools/survey/.env
+tools/survey/responses.json
+tools/survey/form_meta.json
+
+# Python
+__pycache__/
+*.pyc
+.env
