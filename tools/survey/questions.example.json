@@ -1,0 +1,24 @@
+[
+  {
+    "text": "How would you rate the overall quality of this sprint?",
+    "type": "scale"
+  },
+  {
+    "text": "How well did the team communicate during this sprint?",
+    "type": "scale"
+  },
+  {
+    "text": "Were sprint goals clearly defined at the start?",
+    "type": "multiple_choice",
+    "options": ["Yes, very clearly", "Somewhat clearly", "Not clearly", "Not defined at all"]
+  },
+  {
+    "text": "What was the biggest blocker this sprint?",
+    "type": "multiple_choice",
+    "options": ["Technical debt", "Unclear requirements", "Resource availability", "External dependencies", "Other"]
+  },
+  {
+    "text": "What one thing would you change about how the team worked this sprint?",
+    "type": "text"
+  }
+]
