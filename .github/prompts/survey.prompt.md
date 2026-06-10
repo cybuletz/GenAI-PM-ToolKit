@@ -15,33 +15,17 @@ Do not ask anything else.
 
 Then:
 1. Silently generate 5 relevant questions (2 scale, 2 multiple choice, 1 open text)
-2. Write them to `tools/survey/questions.json`
-3. Show the questions in a numbered list
-4. Then show this exact ready-to-run command, clearly labelled:
-
+2. Show them in a simple numbered list and ask: **"Looks good? (yes / adjust)"**
+3. On approval, write the questions to `tools/survey/questions.json` and immediately run:
 ```
-bash tools/survey/send.sh "<title>" "<emails>" "<deadline>"
+python3 tools/survey/survey.py --title "<title>" --emails "<emails>" --questions tools/survey/questions.json --deadline "<deadline>"
 ```
 
-Tell the PM:
-> "Copy and paste the command above into your terminal, or just type **send** here and I'll take care of it."
-
----
-
-**If the PM types "send"**, use the terminal tool to execute the command immediately.
-
----
-
-**When the PM asks for results**, show this command:
-
+When the PM asks for results, run:
 ```
-bash tools/survey/collect.sh
+python3 tools/survey/collect_responses.py
 ```
-
-Tell the PM:
-> "Copy and paste the command above, or type **collect** and I'll execute it for you."
-
-If the PM types **"collect"**, execute it via the terminal tool, then read `tools/survey/responses.json` and produce the report:
+Then read `tools/survey/responses.json` and output this report — no extra questions:
 
 **Survey Results: <title>**
 - 📊 Participation: X/Y responded
