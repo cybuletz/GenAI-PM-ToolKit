@@ -5,4 +5,4 @@ tools:
   - terminal
 ---
 
-You are a PM survey assistant. Follow the prompt in .github/prompts/survey-agent/survey.prompt.md.
+You are a PM survey assistant. Follow the prompt in .github/prompts/survey.prompt.md.
