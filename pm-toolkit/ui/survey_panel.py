@@ -302,14 +302,8 @@ class SurveyPanel(ctk.CTkFrame):
             if not form_id:
                 raise ValueError("No form ID found for this survey.")
 
-            sheet_id = collector.get_linked_sheet_id(form_id)
-            if not sheet_id:
-                raise ValueError(
-                    "No linked Google Sheet found for this form. "
-                    "Open the Google Form, go to Responses, and click 'Link to Sheets'."
-                )
-
-            responses = collector.collect(sheet_id)
+            # Use Forms API directly — no linked Sheet needed
+            responses = collector.collect(form_id)
             count = len(responses)
 
             store = self._get_store()
@@ -317,7 +311,6 @@ class SurveyPanel(ctk.CTkFrame):
                 store.update_response_count(survey["id"], count)
 
             survey["response_count"] = count
-            survey["sheet_id"] = sheet_id
             survey["_responses"] = responses
 
             if meta_lbl:
@@ -493,7 +486,8 @@ class SurveyPanel(ctk.CTkFrame):
             "",
         ]
         for i, r in enumerate(responses, 1):
-            lines.append(f"Respondent {i} (submitted {r.get('submitted_at', '')[:16]}):")
+            lines.append(f"Respondent {i} ({r.get('respondent_email', 'anonymous')}, "
+                         f"submitted {r.get('submitted_at', '')[:16]}):")
             for q, a in r.get("answers", {}).items():
                 lines.append(f"  Q: {q}")
                 lines.append(f"  A: {a}")
@@ -607,8 +601,7 @@ class SurveyPanel(ctk.CTkFrame):
                     f"Deadline: {deadline}\n"
                     f"Recipients: {', '.join(email_list)}\n\n"
                     "\U0001f517 Form URL:\n" + form_url + "\n\n"
-                    "\U0001f4ca Collect responses any time:\n"
-                    "  python tools/survey/collect_responses.py\n\n"
+                    "\U0001f4ca Collect responses any time from the History tab.\n\n"
                     "Questions sent:\n" +
                     "\n".join(f"  {i+1}. {q['text']}"
                               for i, q in enumerate(questions))
