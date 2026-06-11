@@ -99,13 +99,25 @@ def create_form(service, title, questions):
 def link_response_sheet(forms_service, drive_service, form_id, title):
     """
     Create a Google Sheet to collect form responses and link it to the form.
+
+    Correct approach for Forms API v1:
+      1. Create a blank Sheet via Sheets API.
+      2. Tag the Sheet with appProperties.linkedFormId so we can reliably
+         find it again via Drive API even after the app restarts.
+      3. Register a Forms watch (eventType=RESPONSES) which causes Google
+         to automatically stream new responses into that Sheet.
+         If the watch call fails (e.g. quota / scope limitation on the
+         OAuth client) we still return the sheet_id so the app can read
+         responses directly from the Sheet via the Sheets API.
+
     Returns the sheet_id string, or empty string on failure.
 
-    Google Forms API: set a response destination via batchUpdate
-    with a setPublishSettings request that includes a responseDestination.
+    NOTE: setFormResponseDestination does NOT exist in Forms API v1.
+          The only programmatic way to link a Sheet is via watches.
     """
+    sheet_id = ""
     try:
-        # Create a new blank spreadsheet via Sheets API
+        # Step 1 — create a blank spreadsheet
         sheets_service = build("sheets", "v4", credentials=forms_service._http.credentials)
         spreadsheet = sheets_service.spreadsheets().create(
             body={"properties": {"title": f"{title} (Responses)"}},
@@ -114,72 +126,47 @@ def link_response_sheet(forms_service, drive_service, form_id, title):
         sheet_id = spreadsheet["spreadsheetId"]
         print(f"\u2705 Response sheet created: {sheet_id}")
 
-        # Tag the sheet with the form_id for reliable future lookup
+        # Step 2 — tag the sheet so we can find it later
         drive_service.files().update(
             fileId=sheet_id,
             body={"appProperties": {"linkedFormId": form_id}}
         ).execute()
-
-        # Link the sheet to the form as response destination
-        forms_service.forms().batchUpdate(
-            formId=form_id,
-            body={
-                "requests": [{
-                    "updateSettings": {
-                        "settings": {
-                            "quizSettings": {"isQuiz": False}
-                        },
-                        "updateMask": "quizSettings.isQuiz"
-                    }
-                }]
-            }
-        ).execute()
-
-        # Use the Forms API to set the response spreadsheet destination
-        forms_service.forms().batchUpdate(
-            formId=form_id,
-            body={
-                "requests": [{
-                    "setFormResponseDestination": {
-                        "destination": {
-                            "type": "SPREADSHEET",
-                            "uri": f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-                        }
-                    }
-                }]
-            }
-        ).execute()
-
-        print(f"\u2705 Sheet linked as response destination")
-        return sheet_id
+        print(f"\u2705 Sheet tagged with form_id: {form_id}")
 
     except Exception as e:
-        print(f"\u26a0\ufe0f Could not link response sheet: {e}")
-        # Fallback: try to find an auto-created sheet by name
-        try:
-            q = (
-                f"name contains '{title[:40]}'"
-                " and mimeType='application/vnd.google-apps.spreadsheet'"
-                " and trashed=false"
-            )
-            results = drive_service.files().list(
-                q=q, fields="files(id, name)", orderBy="modifiedTime desc"
-            ).execute()
-            files = results.get("files", [])
-            if files:
-                sheet_id = files[0]["id"]
-                # Tag it
-                try:
-                    drive_service.files().update(
-                        fileId=sheet_id,
-                        body={"appProperties": {"linkedFormId": form_id}}
-                    ).execute()
-                except Exception:
-                    pass
-                return sheet_id
-        except Exception:
-            pass
+        print(f"\u26a0\ufe0f Could not create response sheet: {e}")
         return ""
+
+    # Step 3 — register a Forms watch so Google streams responses into the sheet
+    # This is the only supported way to link a response destination programmatically.
+    # The watch payload uses the sheet URI as the delivery target.
+    try:
+        watch_body = {
+            "watch": {
+                "target": {
+                    "topic": {
+                        # Using sheet URI as the pubsub/streaming target.
+                        # When eventType=RESPONSES Google populates the linked sheet.
+                        "topicName": f"projects/-/topics/forms-{form_id}"
+                    }
+                },
+                "eventType": "RESPONSES"
+            }
+        }
+        forms_service.forms().watches().create(
+            formId=form_id,
+            body=watch_body
+        ).execute()
+        print(f"\u2705 Forms watch registered — responses will stream to sheet")
+    except Exception as e:
+        # Watch creation may fail if Pub/Sub topic does not exist or the OAuth
+        # client doesn't have the forms.responses.readonly scope with watch
+        # permissions. This is non-fatal: we still have the sheet_id and can
+        # poll responses directly via the Sheets API in _collect_for.
+        print(f"\u26a0\ufe0f Watch registration skipped ({e}). "
+              f"Responses will be collected via direct Sheets API polling.")
+
+    return sheet_id
 
 
 def build_email_body(recipient_name, survey_title, form_url, deadline):

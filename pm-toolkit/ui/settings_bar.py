@@ -13,7 +13,14 @@ _FALLBACK_MODELS = ["gpt-4o", "gpt-4.1", "gpt-4o-mini",
 def fetch_available_models(token: str) -> list[str]:
     """
     Call the GitHub Models catalogue endpoint and return model IDs that
-    support chat completion.  Falls back to _FALLBACK_MODELS on any error.
+    support chat / text-generation.  Falls back to _FALLBACK_MODELS on error.
+
+    The API response shape varies by provider:
+      - Most models: supported_generation_methods: ["chat"] or ["text-generation"]
+      - Some (Cohere, etc.):  task: "chat-completion"
+      - Older schema:         capabilities.type == "chat"
+      - When none of the above fields exist we include the model anyway
+        (better to show extras than silently drop providers like Gemini).
     """
     try:
         resp = _requests.get(
@@ -23,17 +30,40 @@ def fetch_available_models(token: str) -> list[str]:
         )
         resp.raise_for_status()
         data = resp.json()
-        # The API returns a list of model objects; each has an "id" and
-        # a "capabilities" dict.  Keep only chat-capable models.
-        models = []
         items = data if isinstance(data, list) else data.get("data", [])
+
+        models = []
         for item in items:
+            model_id = item.get("id") or item.get("name", "")
+            if not model_id:
+                continue
+
+            # Check all known capability fields
+            gen_methods = item.get("supported_generation_methods", [])
+            task = item.get("task", "")
             caps = item.get("capabilities", {})
-            if caps.get("supports_completion") or caps.get("type") == "chat":
-                models.append(item["id"])
-        if not models:
-            # If capabilities aren't exposed, just take all returned ids
-            models = [item["id"] for item in items if item.get("id")]
+            cap_type = caps.get("type", "") if isinstance(caps, dict) else ""
+
+            is_chat = (
+                "chat" in gen_methods
+                or "text-generation" in gen_methods
+                or "chat-completion" in task
+                or cap_type == "chat"
+                or caps.get("supports_completion")  # legacy field
+            )
+
+            # If no capability metadata at all, include the model anyway
+            # (avoids silently dropping providers that omit these fields)
+            no_meta = (
+                not gen_methods
+                and not task
+                and not cap_type
+                and not caps.get("supports_completion")
+            )
+
+            if is_chat or no_meta:
+                models.append(model_id)
+
         return models if models else _FALLBACK_MODELS
     except Exception:
         return _FALLBACK_MODELS
@@ -179,7 +209,6 @@ class SettingsBar(ctk.CTkFrame):
             models = fetch_available_models(token)
             current = self.model_var.get()
             if current not in models:
-                # Keep the current selection even if not in the new list
                 models = [current] + models
             self.after(0, lambda: self.model_menu.configure(values=models))
         threading.Thread(target=run, daemon=True).start()
