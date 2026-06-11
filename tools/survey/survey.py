@@ -14,9 +14,10 @@ load_dotenv()
 
 SCOPES = [
     "https://www.googleapis.com/auth/forms.body",
+    "https://www.googleapis.com/auth/forms.responses.readonly",
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/gmail.send",
 ]
 
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "token.json")
@@ -96,75 +97,39 @@ def create_form(service, title, questions):
     return form_id, form_url
 
 
-def link_response_sheet(forms_service, drive_service, form_id, title):
+def link_response_sheet(creds, drive_service, form_id, title):
     """
-    Create a Google Sheet to collect form responses and link it to the form.
+    Create a Google Sheet to collect form responses and tag it so it can
+    be found later via the Drive API.
 
-    Correct approach for Forms API v1:
-      1. Create a blank Sheet via Sheets API.
-      2. Tag the Sheet with appProperties.linkedFormId so we can reliably
-         find it again via Drive API even after the app restarts.
-      3. Register a Forms watch (eventType=RESPONSES) which causes Google
-         to automatically stream new responses into that Sheet.
-         If the watch call fails (e.g. quota / scope limitation on the
-         OAuth client) we still return the sheet_id so the app can read
-         responses directly from the Sheet via the Sheets API.
+    Accepts ``creds`` directly instead of a service object so we never
+    have to reach into the private ``service._http.credentials`` attribute,
+    which is unreliable in newer versions of google-api-python-client and
+    returns None, causing this function to silently fail and store an
+    empty sheet_id.
 
     Returns the sheet_id string, or empty string on failure.
-
-    NOTE: setFormResponseDestination does NOT exist in Forms API v1.
-          The only programmatic way to link a Sheet is via watches.
     """
-    sheet_id = ""
     try:
-        # Step 1 — create a blank spreadsheet
-        sheets_service = build("sheets", "v4", credentials=forms_service._http.credentials)
+        sheets_service = build("sheets", "v4", credentials=creds)
         spreadsheet = sheets_service.spreadsheets().create(
             body={"properties": {"title": f"{title} (Responses)"}},
             fields="spreadsheetId"
         ).execute()
         sheet_id = spreadsheet["spreadsheetId"]
         print(f"\u2705 Response sheet created: {sheet_id}")
-
-        # Step 2 — tag the sheet so we can find it later
-        drive_service.files().update(
-            fileId=sheet_id,
-            body={"appProperties": {"linkedFormId": form_id}}
-        ).execute()
-        print(f"\u2705 Sheet tagged with form_id: {form_id}")
-
     except Exception as e:
         print(f"\u26a0\ufe0f Could not create response sheet: {e}")
         return ""
 
-    # Step 3 — register a Forms watch so Google streams responses into the sheet
-    # This is the only supported way to link a response destination programmatically.
-    # The watch payload uses the sheet URI as the delivery target.
     try:
-        watch_body = {
-            "watch": {
-                "target": {
-                    "topic": {
-                        # Using sheet URI as the pubsub/streaming target.
-                        # When eventType=RESPONSES Google populates the linked sheet.
-                        "topicName": f"projects/-/topics/forms-{form_id}"
-                    }
-                },
-                "eventType": "RESPONSES"
-            }
-        }
-        forms_service.forms().watches().create(
-            formId=form_id,
-            body=watch_body
+        drive_service.files().update(
+            fileId=sheet_id,
+            body={"appProperties": {"linkedFormId": form_id}}
         ).execute()
-        print(f"\u2705 Forms watch registered — responses will stream to sheet")
+        print(f"\u2705 Sheet tagged with linkedFormId={form_id}")
     except Exception as e:
-        # Watch creation may fail if Pub/Sub topic does not exist or the OAuth
-        # client doesn't have the forms.responses.readonly scope with watch
-        # permissions. This is non-fatal: we still have the sheet_id and can
-        # poll responses directly via the Sheets API in _collect_for.
-        print(f"\u26a0\ufe0f Watch registration skipped ({e}). "
-              f"Responses will be collected via direct Sheets API polling.")
+        print(f"\u26a0\ufe0f Could not tag sheet ({e}) — sheet_id still returned")
 
     return sheet_id
 
@@ -275,7 +240,7 @@ def main():
     drive_service = build("drive", "v3", credentials=creds)
 
     form_id, form_url = create_form(forms_service, args.title, questions)
-    sheet_id = link_response_sheet(forms_service, drive_service, form_id, args.title)
+    sheet_id = link_response_sheet(creds, drive_service, form_id, args.title)
     send_emails(gmail_service, emails, args.title, form_url, args.deadline)
     save_form_metadata(form_id, form_url, args.title, emails, args.deadline)
 
