@@ -10,8 +10,8 @@ class SurveyPanel(ctk.CTkFrame):
     def __init__(self, parent, settings: dict):
         super().__init__(parent, fg_color="transparent")
         self.settings = settings
-        self._creds = None          # set after Gmail sign-in
-        self._store = None          # SurveyStore, lazy-loaded
+        self._creds = None
+        self._store = None
         self._selected_survey = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -24,10 +24,8 @@ class SurveyPanel(ctk.CTkFrame):
     def _build(self):
         self.tab_view = ctk.CTkTabview(self, height=600)
         self.tab_view.grid(row=0, column=0, sticky="nsew")
-
         self.tab_view.add("New Survey")
         self.tab_view.add("History")
-
         self._build_new_tab(self.tab_view.tab("New Survey"))
         self._build_history_tab(self.tab_view.tab("History"))
 
@@ -110,12 +108,10 @@ class SurveyPanel(ctk.CTkFrame):
                                         font=ctk.CTkFont(size=12), text_color="gray")
         self.hist_status.grid(row=0, column=1, sticky="w")
 
-        # Scrollable survey list
         self.survey_list_frame = ctk.CTkScrollableFrame(parent, label_text="")
         self.survey_list_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
         self.survey_list_frame.grid_columnconfigure(0, weight=1)
 
-        # Analysis section
         analysis_frame = ctk.CTkFrame(parent)
         analysis_frame.grid(row=2, column=0, sticky="ew", pady=(0, 8))
         analysis_frame.grid_columnconfigure(1, weight=1)
@@ -184,7 +180,6 @@ class SurveyPanel(ctk.CTkFrame):
             self.trend_x.grid_remove()
 
     def _get_store(self):
-        """Lazy-init SurveyStore using current Gmail credentials."""
         if self._store:
             return self._store
         creds = self._get_creds()
@@ -195,12 +190,11 @@ class SurveyPanel(ctk.CTkFrame):
         return self._store
 
     def _get_creds(self):
-        """Load Gmail OAuth credentials from token file."""
         if self._creds:
             return self._creds
-        survey_dir = os.path.join(os.path.dirname(__file__),
-                                  "..", "..", "tools", "survey")
-        survey_dir = os.path.abspath(survey_dir)
+        survey_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
+        )
         token_path = os.path.join(survey_dir, "token.json")
         if not os.path.exists(token_path):
             return None
@@ -242,7 +236,6 @@ class SurveyPanel(ctk.CTkFrame):
     def _populate_survey_list(self, surveys: list):
         for w in self.survey_list_frame.winfo_children():
             w.destroy()
-
         if not surveys:
             ctk.CTkLabel(
                 self.survey_list_frame,
@@ -250,7 +243,6 @@ class SurveyPanel(ctk.CTkFrame):
                 font=ctk.CTkFont(size=13), text_color="gray"
             ).pack(pady=16)
             return
-
         for survey in surveys:
             self._make_survey_row(survey)
 
@@ -259,11 +251,9 @@ class SurveyPanel(ctk.CTkFrame):
         row.pack(fill="x", pady=4, padx=2)
         row.grid_columnconfigure(1, weight=1)
 
-        # Selection indicator
         indicator = ctk.CTkLabel(row, text="", width=6, fg_color="transparent")
         indicator.grid(row=0, column=0, rowspan=2, sticky="ns", padx=(6, 4))
 
-        # Title + date
         sent = survey.get("sent_at", "")
         try:
             dt = datetime.fromisoformat(sent)
@@ -286,15 +276,13 @@ class SurveyPanel(ctk.CTkFrame):
         )
         meta_lbl.grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(0, 8))
 
-        # Buttons
         btn_frame = ctk.CTkFrame(row, fg_color="transparent")
         btn_frame.grid(row=0, column=2, rowspan=2, padx=(0, 8), pady=8)
 
         collect_btn = ctk.CTkButton(
             btn_frame, text="\U0001f4e5 Collect", width=90, height=28,
             font=ctk.CTkFont(size=12),
-            command=lambda s=survey, b=collect_btn if False else None,
-                           lbl=meta_lbl: self._collect_for(s, lbl)
+            command=lambda s=survey, lbl=meta_lbl: self._collect_for(s, lbl)
         )
         collect_btn.pack(side="left", padx=(0, 6))
 
@@ -312,27 +300,58 @@ class SurveyPanel(ctk.CTkFrame):
             try:
                 creds = self._get_creds()
                 if not creds:
+                    self.after(0, lambda: self.hist_status.configure(
+                        text="\u26a0\ufe0f Sign in with Gmail first.",
+                        text_color="orange"))
                     return
+
                 from core.response_collector import ResponseCollector
                 collector = ResponseCollector(creds)
-                sheet_id = survey.get("sheet_id") or \
-                           collector.get_linked_sheet_id(survey["form_id"])
+
+                # --- Primary path: use sheet_id saved at send time ---
+                sheet_id = survey.get("sheet_id") or ""
+
+                # --- Fallback: Drive lookup via form_id ---
+                if not sheet_id:
+                    sheet_id = collector.get_linked_sheet_id(survey.get("form_id", ""))
+
                 if not sheet_id:
                     self.after(0, lambda: self.hist_status.configure(
-                        text="\u274c Could not find linked Sheet.", text_color="red"))
+                        text=(
+                            "\u274c Could not find linked Sheet. "
+                            "Open the form in Google Forms and link a Sheet manually."
+                        ),
+                        text_color="red"))
                     return
+
                 responses = collector.collect(sheet_id)
                 count = len(responses)
+
+                # Persist updated count and cache responses
                 store = self._get_store()
                 if store:
                     store.update_response_count(survey["id"], count)
-                    survey["response_count"] = count
-                    survey["_responses"] = responses  # cache for analysis
+                survey["response_count"] = count
+                survey["_responses"] = responses
+
+                # Also persist sheet_id back into store if it was missing
+                if not survey.get("sheet_id") and sheet_id and store:
+                    survey["sheet_id"] = sheet_id
+                    for s in store._data["surveys"]:
+                        if s["id"] == survey["id"]:
+                            s["sheet_id"] = sheet_id
+                            break
+                    store._save()
+
+                sent_str = survey.get("sent_at", "")[:16]
+                total = len(survey.get("recipients", []))
                 self.after(0, lambda: meta_lbl.configure(
-                    text=f"{survey.get('sent_at','')[:16]}  \u2022  {count}/{len(survey.get('recipients',[]))} responses"
+                    text=f"{sent_str}  \u2022  {count}/{total} responses"
                 ))
                 self.after(0, lambda: self.hist_status.configure(
-                    text=f"\u2705 {count} response(s) collected.", text_color="#2ecc71"))
+                    text=f"\u2705 {count} response(s) collected.",
+                    text_color="#2ecc71"))
+
             except Exception as e:
                 self.after(0, lambda: self.hist_status.configure(
                     text=f"\u274c {e}", text_color="red"))
@@ -340,8 +359,6 @@ class SurveyPanel(ctk.CTkFrame):
         threading.Thread(target=run, daemon=True).start()
 
     def _select_survey(self, survey: dict, indicator: ctk.CTkLabel):
-        """Mark a survey as selected for analysis."""
-        # Clear previous selection highlights
         for w in self.survey_list_frame.winfo_children():
             for child in w.winfo_children():
                 if isinstance(child, ctk.CTkLabel) and child.cget("width") == 6:
@@ -359,15 +376,16 @@ class SurveyPanel(ctk.CTkFrame):
         token = self.settings.get("github_token", "")
         if not token:
             self.hist_status.configure(
-                text="\u26a0\ufe0f Sign in to GitHub Copilot first.", text_color="orange")
+                text="\u26a0\ufe0f Sign in to GitHub Copilot first.",
+                text_color="orange")
             return
 
         mode = self.analysis_mode.get()
-
         if mode == "This survey only":
             if not self._selected_survey:
                 self.hist_status.configure(
-                    text="\u26a0\ufe0f Select a survey first.", text_color="orange")
+                    text="\u26a0\ufe0f Select a survey first.",
+                    text_color="orange")
                 return
             self._run_single_analysis(self._selected_survey)
         else:
@@ -386,9 +404,9 @@ class SurveyPanel(ctk.CTkFrame):
         responses = survey.get("_responses")
         if not responses:
             self.hist_status.configure(
-                text="\u26a0\ufe0f Collect responses first.", text_color="orange")
+                text="\u26a0\ufe0f Collect responses first.",
+                text_color="orange")
             return
-
         self.analyse_btn.configure(state="disabled", text="Analysing...")
 
         def run():
@@ -419,18 +437,16 @@ class SurveyPanel(ctk.CTkFrame):
         store = self._get_store()
         if not store:
             self.hist_status.configure(
-                text="\u26a0\ufe0f Sign in with Gmail first.", text_color="orange")
+                text="\u26a0\ufe0f Sign in with Gmail first.",
+                text_color="orange")
             return
-
         surveys = store.last_n(x)
         surveys_with_responses = [s for s in surveys if s.get("_responses")]
-
         if not surveys_with_responses:
             self.hist_status.configure(
                 text="\u26a0\ufe0f Collect responses for at least one survey first.",
                 text_color="orange")
             return
-
         self.analyse_btn.configure(state="disabled", text="Analysing...")
 
         def run():
@@ -447,7 +463,8 @@ class SurveyPanel(ctk.CTkFrame):
                 )
                 self.after(0, lambda: self._set_hist_output(result))
                 self.after(0, lambda: self.hist_status.configure(
-                    text="\u2705 Trend analysis complete.", text_color="#2ecc71"))
+                    text="\u2705 Trend analysis complete.",
+                    text_color="#2ecc71"))
             except Exception as e:
                 self.after(0, lambda: self.hist_status.configure(
                     text=f"\u274c {e}", text_color="red"))
@@ -462,12 +479,14 @@ class SurveyPanel(ctk.CTkFrame):
     # ------------------------------------------------------------------ #
 
     def _format_single(self, survey: dict, responses: list) -> str:
-        lines = [f"Survey: {survey['title']}",
-                 f"Sent: {survey.get('sent_at','')[:10]}",
-                 f"Responses: {len(responses)} / {len(survey.get('recipients', []))}",
-                 ""]
+        lines = [
+            f"Survey: {survey['title']}",
+            f"Sent: {survey.get('sent_at', '')[:10]}",
+            f"Responses: {len(responses)} / {len(survey.get('recipients', []))}",
+            "",
+        ]
         for i, r in enumerate(responses, 1):
-            lines.append(f"Respondent {i} (submitted {r.get('submitted_at','')[:16]}):")
+            lines.append(f"Respondent {i} (submitted {r.get('submitted_at', '')[:16]}):")
             for q, a in r.get("answers", {}).items():
                 lines.append(f"  Q: {q}")
                 lines.append(f"  A: {a}")
@@ -478,9 +497,13 @@ class SurveyPanel(ctk.CTkFrame):
         lines = [f"Trend analysis across {len(surveys)} surveys:", ""]
         for survey in surveys:
             responses = survey.get("_responses", [])
-            lines.append(f"--- {survey['title']} ({survey.get('sent_at','')[:10]}) ---")
-            lines.append(f"Responses: {len(responses)} / {len(survey.get('recipients', []))}")
-            for i, r in enumerate(responses, 1):
+            lines.append(
+                f"--- {survey['title']} ({survey.get('sent_at', '')[:10]}) ---"
+            )
+            lines.append(
+                f"Responses: {len(responses)} / {len(survey.get('recipients', []))}"
+            )
+            for r in responses:
                 for q, a in r.get("answers", {}).items():
                     lines.append(f"  Q: {q}  |  A: {a}")
             lines.append("")
@@ -491,8 +514,8 @@ class SurveyPanel(ctk.CTkFrame):
         return (
             "You are analysing PM team survey responses. "
             "Produce a clear, structured summary covering: participation rate, "
-            "key themes from scale questions (averages), dominant patterns in multiple choice, "
-            "and notable open-text responses. "
+            "key themes from scale questions (averages), dominant patterns in "
+            "multiple choice, and notable open-text responses. "
             "Flag any strong signals — positive or negative. "
             "Be concise and actionable. Do not pad the output."
         )
@@ -501,15 +524,15 @@ class SurveyPanel(ctk.CTkFrame):
     def _trend_system_prompt() -> str:
         return (
             "You are analysing a series of PM team surveys over time. "
-            "For each question that appears across surveys, identify the direction of change "
-            "(improving / stable / declining). "
+            "For each question that appears across surveys, identify the direction "
+            "of change (improving / stable / declining). "
             "Highlight any consistent concerns, improvements, or emerging patterns. "
-            "Conclude with 2-3 actionable recommendations based on the trend. "
+            "Conclude with 2–3 actionable recommendations based on the trend. "
             "Be direct and evidence-based."
         )
 
     # ------------------------------------------------------------------ #
-    #  Send survey (preserved from original)                              #
+    #  Send survey                                                         #
     # ------------------------------------------------------------------ #
 
     def _send_survey(self):
@@ -518,17 +541,20 @@ class SurveyPanel(ctk.CTkFrame):
         emails = self.entries[2].get().strip()
 
         if not topic:
-            self.new_status.configure(text="\u26a0\ufe0f Please enter a survey topic.",
-                                      text_color="orange")
+            self.new_status.configure(
+                text="\u26a0\ufe0f Please enter a survey topic.",
+                text_color="orange")
             return
         if not emails:
-            self.new_status.configure(text="\u26a0\ufe0f Please enter at least one email.",
-                                      text_color="orange")
+            self.new_status.configure(
+                text="\u26a0\ufe0f Please enter at least one email.",
+                text_color="orange")
             return
 
         self.send_btn.configure(state="disabled", text="Sending...")
-        self.new_status.configure(text="\u23f3 Generating questions and creating form...",
-                                  text_color="gray")
+        self.new_status.configure(
+            text="\u23f3 Generating questions and creating form...",
+            text_color="gray")
 
         def run():
             try:
@@ -536,16 +562,16 @@ class SurveyPanel(ctk.CTkFrame):
                 self._write_questions(questions)
                 email_list = [e.strip() for e in emails.split(",") if e.strip()]
 
-                survey_dir = os.path.join(os.path.dirname(__file__),
-                                          "..", "..", "tools", "survey")
-                survey_dir = os.path.abspath(survey_dir)
+                survey_dir = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
+                )
                 sys.path.insert(0, survey_dir)
 
                 from survey import authenticate, create_form, send_emails, save_form_metadata
                 from googleapiclient.discovery import build
 
                 creds = authenticate()
-                self._creds = creds  # cache for later use
+                self._creds = creds
                 forms_service = build("forms", "v1", credentials=creds)
                 gmail_service = build("gmail", "v1", credentials=creds)
                 drive_service = build("drive", "v3", credentials=creds)
@@ -554,30 +580,43 @@ class SurveyPanel(ctk.CTkFrame):
                 send_emails(gmail_service, email_list, topic, form_url, deadline)
                 save_form_metadata(form_id, form_url, topic, email_list, deadline)
 
-                # Find the linked Sheet ID (Google creates it automatically)
+                # Find the linked Sheet — Google auto-creates it, may take a moment
                 import time
-                time.sleep(2)  # brief wait for Drive to register the Sheet
-                sheet_id = None
-                try:
-                    results = drive_service.files().list(
-                        q=f"name contains '{topic}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
-                        fields="files(id,name)",
-                        orderBy="modifiedTime desc"
-                    ).execute()
-                    files = results.get("files", [])
-                    if files:
-                        sheet_id = files[0]["id"]
-                except Exception:
-                    pass
+                sheet_id = ""
+                for attempt in range(4):          # retry up to ~8 s
+                    time.sleep(2)
+                    try:
+                        results = drive_service.files().list(
+                            q=(
+                                f"name contains '{topic[:40]}'"
+                                " and mimeType='application/vnd.google-apps.spreadsheet'"
+                                " and trashed=false"
+                            ),
+                            fields="files(id, name)",
+                            orderBy="modifiedTime desc",
+                        ).execute()
+                        files = results.get("files", [])
+                        if files:
+                            sheet_id = files[0]["id"]
+                            # Tag the sheet so fallback lookup works later
+                            try:
+                                drive_service.files().update(
+                                    fileId=sheet_id,
+                                    body={"appProperties": {"linkedFormId": form_id}},
+                                ).execute()
+                            except Exception:
+                                pass
+                            break
+                    except Exception:
+                        pass
 
-                # Save to Drive index
                 from core.survey_store import SurveyStore
                 store = SurveyStore(creds)
                 self._store = store
                 store.add_survey(
                     title=topic,
                     form_id=form_id,
-                    sheet_id=sheet_id or "",
+                    sheet_id=sheet_id,
                     recipients=email_list,
                     question_count=len(questions)
                 )
@@ -586,16 +625,17 @@ class SurveyPanel(ctk.CTkFrame):
                     text="\u2705 Survey sent and saved to Drive history!",
                     text_color="#2ecc71"))
                 self.after(0, lambda: self._set_new_output(
-                    f"\u2705 Survey created and sent!\n\n"
+                    "\u2705 Survey created and sent!\n\n"
                     f"Topic: {topic}\n"
                     f"Deadline: {deadline}\n"
                     f"Recipients: {', '.join(email_list)}\n\n"
-                    f"\U0001f517 Form URL:\n{form_url}\n\n"
-                    f"Questions sent:\n" +
+                    "\U0001f517 Form URL:\n" + form_url + "\n\n"
+                    "Questions sent:\n" +
                     "\n".join(f"  {i+1}. {q['text']}" for i, q in enumerate(questions))
                 ))
                 self.after(0, lambda: self.send_btn.configure(
                     state="normal", text="\U0001f4e4 Send Survey"))
+
             except Exception as e:
                 self.after(0, lambda: self.new_status.configure(
                     text=f"\u274c Error: {e}", text_color="red"))
@@ -630,20 +670,22 @@ class SurveyPanel(ctk.CTkFrame):
             except Exception:
                 pass
         return [
-            {"text": f"How satisfied are you with the team's progress on {topic}?", "type": "scale"},
+            {"text": f"How satisfied are you with the team's progress on {topic}?",
+             "type": "scale"},
             {"text": "How effective was communication within the team?", "type": "scale"},
             {"text": "What was the biggest blocker this sprint?", "type": "multiple_choice",
              "options": ["Technical debt", "Unclear requirements",
                          "External dependencies", "Team capacity"]},
             {"text": "How would you rate the sprint planning quality?", "type": "multiple_choice",
              "options": ["Excellent", "Good", "Needs improvement", "Poor"]},
-            {"text": "What one change would most improve how we work together?", "type": "text"},
+            {"text": "What one change would most improve how we work together?",
+             "type": "text"},
         ]
 
     def _write_questions(self, questions: list):
-        survey_dir = os.path.join(os.path.dirname(__file__),
-                                  "..", "..", "tools", "survey")
-        survey_dir = os.path.abspath(survey_dir)
+        survey_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
+        )
         path = os.path.join(survey_dir, "questions.json")
         with open(path, "w") as f:
             json.dump(questions, f, indent=2)

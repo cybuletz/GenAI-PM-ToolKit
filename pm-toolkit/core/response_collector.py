@@ -4,8 +4,6 @@ ResponseCollector — fetches responses from the Google Sheet linked to a Form.
 Works at any time after the survey is sent, regardless of whether the app
 was open. Partial responses (not everyone has answered) are fully supported.
 """
-import os
-import sys
 
 
 class ResponseCollector:
@@ -17,8 +15,8 @@ class ResponseCollector:
     def collect(self, sheet_id: str) -> list:
         """
         Fetch all rows from the linked Google Sheet.
-        Returns a list of dicts: {respondent, submitted_at, answers: {question: value}}
-        Partial responses (missing rows) are returned as-is — no filtering.
+        Returns a list of dicts: {submitted_at, answers: {question: value}}
+        Partial responses (missing columns) are padded — no filtering.
         """
         result = (
             self._sheets.spreadsheets()
@@ -33,7 +31,6 @@ class ResponseCollector:
         headers = rows[0]  # first row = question headers
         responses = []
         for row in rows[1:]:
-            # Pad short rows (partial responses)
             padded = row + [""] * (len(headers) - len(row))
             entry = {
                 "submitted_at": padded[0] if padded else "",
@@ -44,17 +41,49 @@ class ResponseCollector:
 
     def get_linked_sheet_id(self, form_id: str) -> str | None:
         """
-        Given a Form ID, find the linked response Sheet in Drive.
-        Google Forms automatically creates a Sheet with the same title.
+        Fallback: find the response Sheet for a given Form via Drive.
+
+        Strategy (in order):
+        1. Search for Sheets that have the form_id stored in appProperties
+           (set by create_form in tools/survey/survey.py at send time).
+        2. If nothing found, broaden to any Sheet whose name contains
+           '(Responses)' modified most recently — last resort for legacy
+           records where appProperties were never written.
         """
-        q = (
-            f"name contains 'Responses' "
-            "and mimeType='application/vnd.google-apps.spreadsheet' "
-            "and trashed=false"
-        )
-        results = self._drive.files().list(
-            q=q, fields="files(id, name)", orderBy="modifiedTime desc"
-        ).execute()
-        files = results.get("files", [])
-        # Return the most recently modified matching sheet
-        return files[0]["id"] if files else None
+        # --- strategy 1: appProperties match (reliable) ---
+        try:
+            q = (
+                f"appProperties has {{ key='linkedFormId' and value='{form_id}' }}"
+                " and mimeType='application/vnd.google-apps.spreadsheet'"
+                " and trashed=false"
+            )
+            results = self._drive.files().list(
+                q=q,
+                fields="files(id, name)",
+                orderBy="modifiedTime desc",
+            ).execute()
+            files = results.get("files", [])
+            if files:
+                return files[0]["id"]
+        except Exception:
+            pass
+
+        # --- strategy 2: name heuristic (legacy fallback) ---
+        try:
+            q = (
+                "name contains '(Responses)'"
+                " and mimeType='application/vnd.google-apps.spreadsheet'"
+                " and trashed=false"
+            )
+            results = self._drive.files().list(
+                q=q,
+                fields="files(id, name)",
+                orderBy="modifiedTime desc",
+            ).execute()
+            files = results.get("files", [])
+            if files:
+                return files[0]["id"]
+        except Exception:
+            pass
+
+        return None
