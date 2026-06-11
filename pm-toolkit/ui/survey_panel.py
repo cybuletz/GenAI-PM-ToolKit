@@ -5,6 +5,15 @@ import os
 import sys
 from datetime import datetime, timezone
 
+# Must match tools/survey/survey.py exactly so token.json is always valid
+_SCOPES = [
+    "https://www.googleapis.com/auth/forms.body",
+    "https://www.googleapis.com/auth/forms.responses.readonly",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/gmail.send",
+]
+
 
 class SurveyPanel(ctk.CTkFrame):
     def __init__(self, parent, settings: dict):
@@ -174,7 +183,7 @@ class SurveyPanel(ctk.CTkFrame):
         ).grid(row=5, column=0, sticky="e", pady=(4, 0))
 
     # ------------------------------------------------------------------ #
-    #  History row — no Select button, Collect updates count only         #
+    #  History row                                                         #
     # ------------------------------------------------------------------ #
 
     def _on_mode_change(self, value: str):
@@ -207,13 +216,7 @@ class SurveyPanel(ctk.CTkFrame):
         try:
             from google.oauth2.credentials import Credentials
             from google.auth.transport.requests import Request
-            SCOPES = [
-                "https://www.googleapis.com/auth/gmail.send",
-                "https://www.googleapis.com/auth/forms",
-                "https://www.googleapis.com/auth/drive",
-                "https://www.googleapis.com/auth/spreadsheets.readonly",
-            ]
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+            creds = Credentials.from_authorized_user_file(token_path, _SCOPES)
             if creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             self._creds = creds
@@ -279,7 +282,6 @@ class SurveyPanel(ctk.CTkFrame):
         )
         meta_lbl.grid(row=1, column=1, sticky="w", padx=(8, 8), pady=(0, 8))
 
-        # Collect button — refreshes the response count display only
         ctk.CTkButton(
             row, text="\U0001f4e5 Collect", width=90, height=28,
             font=ctk.CTkFont(size=12),
@@ -290,11 +292,6 @@ class SurveyPanel(ctk.CTkFrame):
         ).grid(row=0, column=2, rowspan=2, padx=(0, 8), pady=8)
 
     def _collect_for(self, survey: dict, meta_lbl: ctk.CTkLabel | None = None) -> list:
-        """
-        Fetch responses from Google Sheets for a specific survey.
-        Returns the responses list so _analyse can use it directly.
-        Thread-safe: can be called from a background thread.
-        """
         creds = self._get_creds()
         if not creds:
             return []
@@ -352,7 +349,7 @@ class SurveyPanel(ctk.CTkFrame):
             return []
 
     # ------------------------------------------------------------------ #
-    #  Analysis — auto-collects before running                            #
+    #  Analysis                                                            #
     # ------------------------------------------------------------------ #
 
     def _analyse(self):
@@ -378,7 +375,6 @@ class SurveyPanel(ctk.CTkFrame):
                     text="\u26a0\ufe0f No surveys in history yet.",
                     text_color="orange")
                 return
-            # Analyse the most recent survey automatically
             target = surveys[0]
             self.analyse_btn.configure(state="disabled", text="Collecting...")
             self.hist_status.configure(
@@ -452,7 +448,6 @@ class SurveyPanel(ctk.CTkFrame):
         def run():
             try:
                 surveys = store.last_n(x)
-                # Auto-collect for each survey that hasn't been collected
                 for s in surveys:
                     if not s.get("_responses"):
                         self._collect_for(s)
