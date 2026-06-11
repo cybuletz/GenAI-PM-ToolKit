@@ -183,7 +183,7 @@ class SurveyPanel(ctk.CTkFrame):
         ).grid(row=5, column=0, sticky="e", pady=(4, 0))
 
     # ------------------------------------------------------------------ #
-    #  History row                                                         #
+    #  History helpers                                                     #
     # ------------------------------------------------------------------ #
 
     def _on_mode_change(self, value: str):
@@ -594,9 +594,9 @@ class SurveyPanel(ctk.CTkFrame):
 
                 self.after(0, lambda: self.new_status.configure(
                     text="\u23f3 Linking response sheet...", text_color="gray"))
-                sheet_id = link_response_sheet(
-                    forms_service, drive_service, form_id, topic
-                )
+
+                # Pass creds directly — not forms_service
+                sheet_id = link_response_sheet(creds, drive_service, form_id, topic)
 
                 send_emails(gmail_service, email_list, topic, form_url, deadline)
                 save_form_metadata(form_id, form_url, topic, email_list, deadline)
