@@ -16,7 +16,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/forms.body",
     "https://www.googleapis.com/auth/forms.responses.readonly",
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/gmail.send",
 ]
 
@@ -95,43 +94,6 @@ def create_form(service, title, questions):
     form_url = f"https://docs.google.com/forms/d/{form_id}/viewform"
     print(f"\U0001f517 Survey link: {form_url}")
     return form_id, form_url
-
-
-def link_response_sheet(creds, drive_service, form_id, title):
-    """
-    Create a Google Sheet to collect form responses and tag it so it can
-    be found later via the Drive API.
-
-    Accepts ``creds`` directly instead of a service object so we never
-    have to reach into the private ``service._http.credentials`` attribute,
-    which is unreliable in newer versions of google-api-python-client and
-    returns None, causing this function to silently fail and store an
-    empty sheet_id.
-
-    Returns the sheet_id string, or empty string on failure.
-    """
-    try:
-        sheets_service = build("sheets", "v4", credentials=creds)
-        spreadsheet = sheets_service.spreadsheets().create(
-            body={"properties": {"title": f"{title} (Responses)"}},
-            fields="spreadsheetId"
-        ).execute()
-        sheet_id = spreadsheet["spreadsheetId"]
-        print(f"\u2705 Response sheet created: {sheet_id}")
-    except Exception as e:
-        print(f"\u26a0\ufe0f Could not create response sheet: {e}")
-        return ""
-
-    try:
-        drive_service.files().update(
-            fileId=sheet_id,
-            body={"appProperties": {"linkedFormId": form_id}}
-        ).execute()
-        print(f"\u2705 Sheet tagged with linkedFormId={form_id}")
-    except Exception as e:
-        print(f"\u26a0\ufe0f Could not tag sheet ({e}) — sheet_id still returned")
-
-    return sheet_id
 
 
 def build_email_body(recipient_name, survey_title, form_url, deadline):
@@ -237,16 +199,13 @@ def main():
     creds = authenticate()
     forms_service = build("forms", "v1", credentials=creds)
     gmail_service = build("gmail", "v1", credentials=creds)
-    drive_service = build("drive", "v3", credentials=creds)
 
     form_id, form_url = create_form(forms_service, args.title, questions)
-    sheet_id = link_response_sheet(creds, drive_service, form_id, args.title)
     send_emails(gmail_service, emails, args.title, form_url, args.deadline)
     save_form_metadata(form_id, form_url, args.title, emails, args.deadline)
 
-    print("\n\U0001f389 Done! Form created, sheet linked, and survey sent.")
-    if sheet_id:
-        print(f"\U0001f4ca Responses sheet: https://docs.google.com/spreadsheets/d/{sheet_id}")
+    print("\n\U0001f389 Done! Form created and survey sent.")
+    print(f"\U0001f4ca Collect responses any time by running: python collect_responses.py")
 
 
 if __name__ == "__main__":
