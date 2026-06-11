@@ -12,15 +12,11 @@ _FALLBACK_MODELS = ["gpt-4o", "gpt-4.1", "gpt-4o-mini",
 
 def fetch_available_models(token: str) -> list[str]:
     """
-    Call the GitHub Models catalogue endpoint and return model IDs that
-    support chat / text-generation.  Falls back to _FALLBACK_MODELS on error.
-
-    The API response shape varies by provider:
-      - Most models: supported_generation_methods: ["chat"] or ["text-generation"]
-      - Some (Cohere, etc.):  task: "chat-completion"
-      - Older schema:         capabilities.type == "chat"
-      - When none of the above fields exist we include the model anyway
-        (better to show extras than silently drop providers like Gemini).
+    Call the GitHub Models catalogue endpoint and return all model IDs.
+    The endpoint is already scoped to models available to the authenticated
+    user — no capability filtering needed. Filtering was hiding providers
+    (Gemini, Mistral, Llama, Phi, etc.).
+    Falls back to _FALLBACK_MODELS on any error.
     """
     try:
         resp = _requests.get(
@@ -31,39 +27,11 @@ def fetch_available_models(token: str) -> list[str]:
         resp.raise_for_status()
         data = resp.json()
         items = data if isinstance(data, list) else data.get("data", [])
-
-        models = []
-        for item in items:
-            model_id = item.get("id") or item.get("name", "")
-            if not model_id:
-                continue
-
-            # Check all known capability fields
-            gen_methods = item.get("supported_generation_methods", [])
-            task = item.get("task", "")
-            caps = item.get("capabilities", {})
-            cap_type = caps.get("type", "") if isinstance(caps, dict) else ""
-
-            is_chat = (
-                "chat" in gen_methods
-                or "text-generation" in gen_methods
-                or "chat-completion" in task
-                or cap_type == "chat"
-                or caps.get("supports_completion")  # legacy field
-            )
-
-            # If no capability metadata at all, include the model anyway
-            # (avoids silently dropping providers that omit these fields)
-            no_meta = (
-                not gen_methods
-                and not task
-                and not cap_type
-                and not caps.get("supports_completion")
-            )
-
-            if is_chat or no_meta:
-                models.append(model_id)
-
+        models = [
+            item.get("id") or item.get("name", "")
+            for item in items
+            if item.get("id") or item.get("name")
+        ]
         return models if models else _FALLBACK_MODELS
     except Exception:
         return _FALLBACK_MODELS
@@ -187,7 +155,7 @@ class SettingsBar(ctk.CTkFrame):
         self.model_var = ctk.StringVar(value=current_model)
         self.model_menu = ctk.CTkOptionMenu(
             self,
-            values=_FALLBACK_MODELS,   # populated with live data after sign-in
+            values=_FALLBACK_MODELS,   # replaced with live data after sign-in
             variable=self.model_var,
             width=200, height=28,
             font=ctk.CTkFont(size=12),
@@ -246,7 +214,6 @@ class SettingsBar(ctk.CTkFrame):
                 hover_color=("#27ae60", "#219a52"),
                 text_color=("gray10", "gray90"),
             )
-            # Now that we have a token, populate the model list
             self._refresh_model_list(token)
 
     def _on_model_change(self, value: str):

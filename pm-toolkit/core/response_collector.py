@@ -11,6 +11,7 @@ class ResponseCollector:
         from googleapiclient.discovery import build
         self._sheets = build("sheets", "v4", credentials=creds)
         self._drive = build("drive", "v3", credentials=creds)
+        self._forms = build("forms", "v1", credentials=creds)
 
     def collect(self, sheet_id: str) -> list:
         """
@@ -41,16 +42,30 @@ class ResponseCollector:
 
     def get_linked_sheet_id(self, form_id: str) -> str | None:
         """
-        Fallback: find the response Sheet for a given Form via Drive.
+        Find the response Sheet ID for a given Form.
 
-        Strategy (in order):
-        1. Search for Sheets that have the form_id stored in appProperties
-           (set by create_form in tools/survey/survey.py at send time).
-        2. If nothing found, broaden to any Sheet whose name contains
-           '(Responses)' modified most recently — last resort for legacy
-           records where appProperties were never written.
+        Strategy 0 (authoritative): call Forms API GET /forms/{form_id} and
+          read form.linkedSheetId — Google sets this automatically when a
+          Sheet is linked, regardless of how it was linked (UI or API).
+          Works for ALL existing surveys including sprint 1 / sprint 2.
+
+        Strategy 1 (fallback): search Drive for a Sheet tagged with
+          appProperties.linkedFormId == form_id (written at send time by
+          tools/survey/survey.py for new surveys).
+
+        Strategy 2 (last resort): search Drive for any Sheet whose name
+          contains '(Responses)', most recently modified first.
         """
-        # --- strategy 1: appProperties match (reliable) ---
+        # --- strategy 0: Forms API linkedSheetId (most reliable) ---
+        try:
+            form = self._forms.forms().get(formId=form_id).execute()
+            linked = form.get("linkedSheetId", "")
+            if linked:
+                return linked
+        except Exception:
+            pass
+
+        # --- strategy 1: appProperties tag written at send time ---
         try:
             q = (
                 f"appProperties has {{ key='linkedFormId' and value='{form_id}' }}"
