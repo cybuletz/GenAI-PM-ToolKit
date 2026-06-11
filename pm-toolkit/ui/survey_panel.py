@@ -10,7 +10,6 @@ _SCOPES = [
     "https://www.googleapis.com/auth/forms.body",
     "https://www.googleapis.com/auth/forms.responses.readonly",
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/gmail.send",
 ]
 
@@ -299,39 +298,28 @@ class SurveyPanel(ctk.CTkFrame):
             from core.response_collector import ResponseCollector
             collector = ResponseCollector(creds)
 
-            sheet_id = survey.get("sheet_id") or ""
-            if not sheet_id:
-                sheet_id = collector.get_linked_sheet_id(survey.get("form_id", ""))
+            form_id = survey.get("form_id", "")
+            if not form_id:
+                raise ValueError("No form ID found for this survey.")
 
-            if not sheet_id:
-                if meta_lbl:
-                    self.after(0, lambda: self.hist_status.configure(
-                        text=(
-                            "\u274c No linked Sheet found. "
-                            "Open the form in Google Forms and link a Sheet manually."
-                        ),
-                        text_color="red"))
-                return []
-
-            responses = collector.collect(sheet_id)
+            # Use Forms API directly — no linked Sheet needed
+            responses = collector.collect(form_id)
             count = len(responses)
 
             store = self._get_store()
             if store:
                 store.update_response_count(survey["id"], count)
-                if not survey.get("sheet_id") and sheet_id:
-                    survey["sheet_id"] = sheet_id
-                    for s in store._data["surveys"]:
-                        if s["id"] == survey["id"]:
-                            s["sheet_id"] = sheet_id
-                            break
-                    store._save()
 
             survey["response_count"] = count
             survey["_responses"] = responses
 
             if meta_lbl:
-                sent_str = survey.get("sent_at", "")[:16]
+                sent = survey.get("sent_at", "")
+                try:
+                    dt = datetime.fromisoformat(sent)
+                    sent_str = dt.strftime("%d %b %Y  %H:%M")
+                except Exception:
+                    sent_str = sent[:16]
                 total = len(survey.get("recipients", []))
                 self.after(0, lambda: meta_lbl.configure(
                     text=f"{sent_str}  \u2022  {count}/{total} responses"
@@ -498,7 +486,8 @@ class SurveyPanel(ctk.CTkFrame):
             "",
         ]
         for i, r in enumerate(responses, 1):
-            lines.append(f"Respondent {i} (submitted {r.get('submitted_at', '')[:16]}):")
+            lines.append(f"Respondent {i} ({r.get('respondent_email', 'anonymous')}, "
+                         f"submitted {r.get('submitted_at', '')[:16]}):")
             for q, a in r.get("answers", {}).items():
                 lines.append(f"  Q: {q}")
                 lines.append(f"  A: {a}")
@@ -580,24 +569,15 @@ class SurveyPanel(ctk.CTkFrame):
                 )
                 sys.path.insert(0, survey_dir)
 
-                from survey import authenticate, create_form, link_response_sheet, \
-                    send_emails, save_form_metadata
+                from survey import authenticate, create_form, send_emails, save_form_metadata
                 from googleapiclient.discovery import build
 
                 creds = authenticate()
                 self._creds = creds
                 forms_service = build("forms", "v1", credentials=creds)
                 gmail_service = build("gmail", "v1", credentials=creds)
-                drive_service = build("drive", "v3", credentials=creds)
 
                 form_id, form_url = create_form(forms_service, topic, questions)
-
-                self.after(0, lambda: self.new_status.configure(
-                    text="\u23f3 Linking response sheet...", text_color="gray"))
-
-                # Pass creds directly — not forms_service
-                sheet_id = link_response_sheet(creds, drive_service, form_id, topic)
-
                 send_emails(gmail_service, email_list, topic, form_url, deadline)
                 save_form_metadata(form_id, form_url, topic, email_list, deadline)
 
@@ -607,27 +587,21 @@ class SurveyPanel(ctk.CTkFrame):
                 store.add_survey(
                     title=topic,
                     form_id=form_id,
-                    sheet_id=sheet_id,
+                    sheet_id="",
                     recipients=email_list,
                     question_count=len(questions)
                 )
 
-                sheet_note = (
-                    f"\n\U0001f4ca Responses sheet: "
-                    f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-                    if sheet_id else
-                    "\n\u26a0\ufe0f Sheet not linked \u2014 open the form in Google Forms to link manually."
-                )
                 self.after(0, lambda: self.new_status.configure(
-                    text="\u2705 Survey sent and saved to Drive history!",
+                    text="\u2705 Survey sent and saved to history!",
                     text_color="#2ecc71"))
                 self.after(0, lambda: self._set_new_output(
                     "\u2705 Survey created and sent!\n\n"
                     f"Topic: {topic}\n"
                     f"Deadline: {deadline}\n"
                     f"Recipients: {', '.join(email_list)}\n\n"
-                    "\U0001f517 Form URL:\n" + form_url +
-                    sheet_note + "\n\n"
+                    "\U0001f517 Form URL:\n" + form_url + "\n\n"
+                    "\U0001f4ca Collect responses any time from the History tab.\n\n"
                     "Questions sent:\n" +
                     "\n".join(f"  {i+1}. {q['text']}"
                               for i, q in enumerate(questions))
