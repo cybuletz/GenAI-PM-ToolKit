@@ -16,8 +16,12 @@ ACCEPT_FILETYPES = [
     ("Code", "*.py *.ts *.js *.json *.yaml *.yml *.xml"),
 ]
 
+MAX_VISIBLE_CHIPS = 6  # chips per row before wrapping
+
 
 class FileUploadWidget(ctk.CTkFrame):
+    """Attach-files bar with wrapping chips. Always visible; no stretch."""
+
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
         self.files: list[str] = []
@@ -45,9 +49,9 @@ class FileUploadWidget(ctk.CTkFrame):
         )
         self.hint_label.grid(row=0, column=1, sticky="w")
 
-        # Chip container
-        self.chip_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.chip_frame.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        # Chip container — uses pack layout inside so chips wrap naturally
+        self.chip_outer = ctk.CTkFrame(self, fg_color="transparent")
+        self.chip_outer.grid(row=1, column=0, sticky="ew", pady=(6, 0))
 
     def _browse_files(self):
         paths = filedialog.askopenfilenames(filetypes=ACCEPT_FILETYPES)
@@ -59,16 +63,17 @@ class FileUploadWidget(ctk.CTkFrame):
         self._refresh_chips()
 
     def _refresh_chips(self):
-        for widget in self.chip_frame.winfo_children():
+        for widget in self.chip_outer.winfo_children():
             widget.destroy()
 
-        for i, path in enumerate(self.files):
+        for path in self.files:
             filename = os.path.basename(path)
-            chip = ctk.CTkFrame(self.chip_frame, corner_radius=6)
-            chip.grid(row=0, column=i, padx=(0, 6), pady=2)
+            chip = ctk.CTkFrame(self.chip_outer, corner_radius=6)
+            # Use pack so chips flow left-to-right and wrap to next line
+            chip.pack(side="left", padx=(0, 6), pady=2)
 
             name_label = ctk.CTkLabel(chip, text=filename, font=ctk.CTkFont(size=12), padx=6)
-            name_label.grid(row=0, column=0)
+            name_label.pack(side="left")
 
             remove_btn = ctk.CTkButton(
                 chip, text="✕", width=20, height=20,
@@ -77,7 +82,7 @@ class FileUploadWidget(ctk.CTkFrame):
                 hover_color="gray30",
                 command=lambda p=path: self._remove_file(p)
             )
-            remove_btn.grid(row=0, column=1, padx=(0, 4))
+            remove_btn.pack(side="left", padx=(0, 4))
 
     def _remove_file(self, path: str):
         if path in self.files:

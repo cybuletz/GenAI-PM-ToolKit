@@ -8,7 +8,8 @@ class MetricsPanel(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.settings = settings
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(4, weight=1)
+        # Only the output box row expands — everything above stays at natural height
+        self.grid_rowconfigure(8, weight=1)
         self._build()
 
     def _build(self):
@@ -40,9 +41,8 @@ class MetricsPanel(ctk.CTkFrame):
 
         self.input_box = ctk.CTkTextbox(self, height=120, font=ctk.CTkFont(size=13), wrap="word")
         self.input_box.grid(row=3, column=0, sticky="ew", pady=(0, 8))
-        self.input_box.insert("1.0", "")
 
-        # File upload
+        # File upload — fixed height, no row weight
         self.file_upload = FileUploadWidget(self)
         self.file_upload.grid(row=4, column=0, sticky="ew", pady=(0, 8))
 
@@ -64,7 +64,6 @@ class MetricsPanel(ctk.CTkFrame):
         self.output_box = ctk.CTkTextbox(self, font=ctk.CTkFont(size=13), wrap="word")
         self.output_box.grid(row=8, column=0, sticky="nsew")
         self.output_box.configure(state="disabled")
-        self.grid_rowconfigure(8, weight=1)
 
         copy_btn = ctk.CTkButton(
             self, text="📋 Copy", width=80, height=28,
