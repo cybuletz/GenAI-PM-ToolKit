@@ -297,7 +297,19 @@ class SurveyPanel(ctk.CTkFrame):
         try:
             from core.response_collector import ResponseCollector
             collector = ResponseCollector(creds)
-            responses = collector.collect(survey.get("form_id", ""))
+
+            form_id = survey.get("form_id", "")
+            if not form_id:
+                raise ValueError("No form ID found for this survey.")
+
+            sheet_id = collector.get_linked_sheet_id(form_id)
+            if not sheet_id:
+                raise ValueError(
+                    "No linked Google Sheet found for this form. "
+                    "Open the Google Form, go to Responses, and click 'Link to Sheets'."
+                )
+
+            responses = collector.collect(sheet_id)
             count = len(responses)
 
             store = self._get_store()
@@ -305,10 +317,16 @@ class SurveyPanel(ctk.CTkFrame):
                 store.update_response_count(survey["id"], count)
 
             survey["response_count"] = count
+            survey["sheet_id"] = sheet_id
             survey["_responses"] = responses
 
             if meta_lbl:
-                sent_str = survey.get("sent_at", "")[:16]
+                sent = survey.get("sent_at", "")
+                try:
+                    dt = datetime.fromisoformat(sent)
+                    sent_str = dt.strftime("%d %b %Y  %H:%M")
+                except Exception:
+                    sent_str = sent[:16]
                 total = len(survey.get("recipients", []))
                 self.after(0, lambda: meta_lbl.configure(
                     text=f"{sent_str}  \u2022  {count}/{total} responses"
