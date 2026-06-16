@@ -48,7 +48,7 @@ class SurveyPanel(ctk.CTkFrame):
         self._build_history_tab(self.tab_view.tab("History"))
 
     # ------------------------------------------------------------------ #
-    #  New Survey tab                                                      #
+    #  New Survey tab                                                     #
     # ------------------------------------------------------------------ #
 
     def _build_new_tab(self, parent):
@@ -375,10 +375,11 @@ class SurveyPanel(ctk.CTkFrame):
 
     def _make_question_row(self, idx: int, question: dict):
         """
-        Render one question row with:
-          - type dropdown  (fully editable)
-          - question text  (fully editable CTkEntry)
-          - options list   (for multiple_choice, each option is an editable CTkEntry)
+        Render one editable question row:
+          - origin badge  (AI-generated vs manually added)
+          - type dropdown
+          - question text entry
+          - options sub-section  (multiple_choice only)
           - reorder arrows + delete button
         """
         row_frame = ctk.CTkFrame(
@@ -386,9 +387,33 @@ class SurveyPanel(ctk.CTkFrame):
             border_width=1, border_color=("gray75", "gray35")
         )
         row_frame.pack(fill="x", pady=4, padx=2)
-        row_frame.grid_columnconfigure(1, weight=1)
+        row_frame.grid_columnconfigure(2, weight=1)
 
-        # -- type badge ------------------------------------------------ #
+        # -- row number label ------------------------------------------ #
+        ctk.CTkLabel(
+            row_frame,
+            text=f"{idx + 1}.",
+            font=ctk.CTkFont(size=12),
+            text_color="gray",
+            width=24,
+            anchor="e",
+        ).grid(row=0, column=0, padx=(8, 2), pady=(8, 4), sticky="e")
+
+        # -- origin badge ---------------------------------------------- #
+        origin = question.get("_origin", "ai")
+        badge_text = "\U0001f916 AI" if origin == "ai" else "\u270d Manual"
+        badge_color = ("#d0ecd0", "#2a4a2a") if origin == "ai" else ("#dce8f5", "#1e3a5a")
+        ctk.CTkLabel(
+            row_frame,
+            text=badge_text,
+            font=ctk.CTkFont(size=10),
+            fg_color=badge_color,
+            corner_radius=4,
+            text_color=("gray20", "gray85"),
+            width=60,
+        ).grid(row=0, column=1, padx=(0, 6), pady=(8, 4), sticky="w")
+
+        # -- type dropdown --------------------------------------------- #
         type_var = ctk.StringVar(value=question.get("type", "scale"))
         type_menu = ctk.CTkOptionMenu(
             row_frame,
@@ -402,7 +427,7 @@ class SurveyPanel(ctk.CTkFrame):
             text_color=("gray10", "gray90"),
             command=lambda val, i=idx: self._on_type_change(i, val),
         )
-        type_menu.grid(row=0, column=0, padx=(8, 6), pady=(8, 4), sticky="w")
+        type_menu.grid(row=0, column=2, padx=(0, 6), pady=(8, 4), sticky="w")
 
         # -- question text --------------------------------------------- #
         text_var = ctk.StringVar(value=question.get("text", ""))
@@ -413,11 +438,12 @@ class SurveyPanel(ctk.CTkFrame):
             font=ctk.CTkFont(size=13),
             placeholder_text="Question text...",
         )
-        text_entry.grid(row=0, column=1, padx=(0, 6), pady=(8, 4), sticky="ew")
+        text_entry.grid(row=0, column=3, padx=(0, 6), pady=(8, 4), sticky="ew")
+        row_frame.grid_columnconfigure(3, weight=1)
 
         # -- reorder + delete ------------------------------------------ #
         ctrl = ctk.CTkFrame(row_frame, fg_color="transparent")
-        ctrl.grid(row=0, column=2, padx=(0, 8), pady=(8, 4))
+        ctrl.grid(row=0, column=4, padx=(0, 8), pady=(8, 4))
 
         ctk.CTkButton(
             ctrl, text="\u2191", width=26, height=26,
@@ -449,7 +475,7 @@ class SurveyPanel(ctk.CTkFrame):
         # -- options sub-section (multiple_choice only) ---------------- #
         options_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
         options_frame.grid(
-            row=1, column=0, columnspan=3,
+            row=1, column=0, columnspan=5,
             padx=8, pady=(0, 8), sticky="ew"
         )
         options_frame.grid_columnconfigure(0, weight=1)
@@ -535,8 +561,7 @@ class SurveyPanel(ctk.CTkFrame):
             frame.grid_remove()
 
     def _move_question(self, idx: int, direction: int):
-        """Swap question at idx with neighbour; re-render."""
-        # Flush current text edits into _pending_questions first
+        """Flush edits, swap question at idx with neighbour, re-render."""
         self._flush_editor_to_pending()
         new_idx = idx + direction
         if new_idx < 0 or new_idx >= len(self._pending_questions):
@@ -552,16 +577,17 @@ class SurveyPanel(ctk.CTkFrame):
         self._refresh_editor()
 
     def _add_blank_question(self):
+        """Append a blank manual question row to the editor."""
         self._flush_editor_to_pending()
         self._pending_questions.append(
-            {"text": "", "type": "scale", "options": []}
+            {"text": "", "type": "scale", "options": [], "_origin": "manual"}
         )
         self._refresh_editor()
 
     def _flush_editor_to_pending(self):
         """
         Read current widget values back into self._pending_questions
-        so that reorder/delete/move operations don't lose live edits.
+        so that reorder/delete operations do not lose live edits.
         """
         for i, wr in enumerate(self._question_widgets):
             if i >= len(self._pending_questions):
@@ -575,8 +601,9 @@ class SurveyPanel(ctk.CTkFrame):
 
     def _collect_editor_state(self) -> list:
         """
-        Return a clean list[dict] from the editor — the authoritative
-        questions to be written to questions.json and sent.
+        Authoritative read of the editor before send.
+        Returns a clean list[dict] with text/type/options keys only
+        (strips internal _origin marker before writing to disk).
         """
         self._flush_editor_to_pending()
         result = []
@@ -587,13 +614,15 @@ class SurveyPanel(ctk.CTkFrame):
                     o for o in q.get("options", []) if o.strip()
                 ]
             result.append(entry)
-        return [q for q in result if q["text"]]  # drop empty rows
+        # drop rows with no text
+        return [q for q in result if q["text"]]
 
     # ================================================================== #
     #  Step-1 actions                                                     #
     # ================================================================== #
 
     def _preview_questions(self):
+        """Validate inputs, then either load template or call AI."""
         topic = self.entries[0].get().strip()
         if not topic:
             self.new_status.configure(
@@ -609,10 +638,14 @@ class SurveyPanel(ctk.CTkFrame):
         # If a template is selected, skip AI and load template directly
         tpl = self._get_selected_template()
         if tpl:
+            # Mark all template questions as 'manual' so the badge is clear
+            questions = [
+                {**q, "_origin": "manual"} for q in tpl["questions"]
+            ]
             self.new_status.configure(
                 text=f"\U0001f4cb Loaded template: {tpl['name']}",
                 text_color="gray")
-            self._show_editor(tpl["questions"])
+            self._show_editor(questions)
             return
 
         self.preview_btn.configure(state="disabled", text="Generating...")
@@ -620,7 +653,9 @@ class SurveyPanel(ctk.CTkFrame):
             text="\u23f3 Generating questions...", text_color="gray")
 
         def run():
-            questions = self._generate_questions(topic)
+            raw = self._generate_questions(topic)
+            # Tag all AI-generated questions
+            questions = [{**q, "_origin": "ai"} for q in raw]
             self.after(0, lambda: self.preview_btn.configure(
                 state="normal", text="\U0001f50d Preview Questions"))
             self.after(0, lambda: self._show_editor(questions))
@@ -628,7 +663,7 @@ class SurveyPanel(ctk.CTkFrame):
         threading.Thread(target=run, daemon=True).start()
 
     def _start_blank_editor(self):
-        """Open the editor with a single blank question row (no AI call)."""
+        """Open the editor with one blank manual row — no AI call."""
         topic = self.entries[0].get().strip()
         if not topic:
             self.new_status.configure(
@@ -641,9 +676,12 @@ class SurveyPanel(ctk.CTkFrame):
                 text_color="orange")
             return
         self.new_status.configure(text="", text_color="gray")
-        self._show_editor([{"text": "", "type": "scale", "options": []}])
+        self._show_editor(
+            [{"text": "", "type": "scale", "options": [], "_origin": "manual"}]
+        )
 
     def _regenerate_questions(self):
+        """Re-call AI for fresh questions, replacing current editor content."""
         topic = self.entries[0].get().strip()
         if not topic:
             return
@@ -651,7 +689,8 @@ class SurveyPanel(ctk.CTkFrame):
             text="\u23f3 Regenerating questions...", text_color="gray")
 
         def run():
-            questions = self._generate_questions(topic)
+            raw = self._generate_questions(topic)
+            questions = [{**q, "_origin": "ai"} for q in raw]
             self.after(0, lambda: self._show_editor(questions))
             self.after(0, lambda: self.new_status.configure(
                 text="\U0001f504 Questions regenerated.", text_color="gray"))
@@ -735,14 +774,13 @@ class SurveyPanel(ctk.CTkFrame):
                     text_color="orange"))
                 return
             store.add_template(name, questions)
-            # Refresh dropdown
             self._templates_cache = store.all_templates()
             names = ["-- None (AI will generate) --"] + [
                 t["name"] for t in self._templates_cache
             ]
             self.after(0, lambda: self._tpl_menu.configure(values=names))
             self.after(0, lambda: self.new_status.configure(
-                text=f"\u2705 Template '{name}' saved!",
+                text=f"\u2705 Template \u2018{name}\u2019 saved!",
                 text_color="#2ecc71"))
 
         threading.Thread(target=run, daemon=True).start()
@@ -1180,7 +1218,7 @@ class SurveyPanel(ctk.CTkFrame):
                         for i, q in enumerate(questions)
                     )
                 ))
-                # Return to compose step after success
+                # Return to compose step after successful send
                 self.after(0, self._back_to_compose)
                 self.after(0, lambda: self.send_btn.configure(
                     state="normal", text="\U0001f4e4 Send Survey"))
@@ -1194,7 +1232,7 @@ class SurveyPanel(ctk.CTkFrame):
         threading.Thread(target=run, daemon=True).start()
 
     # ================================================================== #
-    #  Question generation (unchanged)                                    #
+    #  Question generation                                                #
     # ================================================================== #
 
     def _generate_questions(self, topic: str) -> list:
