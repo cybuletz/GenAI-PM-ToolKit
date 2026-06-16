@@ -1,7 +1,7 @@
 """
-MicrosoftSurveyPublisher — generates a self-contained HTML survey page,
-uploads it to OneDrive AppFolder (Apps/PMToolkit/surveys/), returns a share URL.
-No Azure, no external hosting — just OneDrive.
+MicrosoftSurveyPublisher — builds a self-contained HTML survey, uploads to
+OneDrive (Apps/PMToolkit/surveys/), returns an anonymous share link.
+No Azure hosting — just OneDrive.
 """
 import json
 import uuid
@@ -17,7 +17,7 @@ class MicrosoftSurveyPublisher:
 
     def publish(self, topic: str, questions: list[dict]) -> tuple[str, str]:
         """
-        Build an HTML survey, upload to OneDrive, create an anonymous share link.
+        Build HTML survey, upload to OneDrive, create anonymous share link.
         Returns: (survey_id, public_url)
         """
         survey_id = str(uuid.uuid4())
@@ -87,7 +87,6 @@ class MicrosoftSurveyPublisher:
             q_blocks.append(
                 f'<div style="margin-bottom:24px"><p style="font-weight:bold;margin-bottom:6px">{i}. {qtext}</p>{field}</div>'
             )
-
         questions_html = "\n".join(q_blocks)
         submit_url = f"https://pm-toolkit-collect.example.com/submit/{survey_id}"
         return f"""<!DOCTYPE html>

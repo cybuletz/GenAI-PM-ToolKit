@@ -1,25 +1,22 @@
 """
 MicrosoftAuth — browser-redirect OAuth2 sign-in via MSAL.
 
-Zero Azure setup required. Uses Microsoft's own pre-registered Office
-desktop client ID (d3590ed6-52b3-4102-aeff-aad2292ab01c), which is
-trusted by every personal, work, and school Microsoft account — identical
-to how Google's credentials.json is pre-created by the developer so
-end-users never touch the Google Cloud Console.
+Mirrors GmailAuth exactly:
+  - Reads Client ID from tools/survey/ms_credentials.json  (one-time setup by developer)
+  - Caches token to tools/survey/ms_token_cache.json
+  - First call → browser opens → user signs in to Microsoft
+  - Every call after → silent refresh, browser never re-opens
 
-Flow (mirrors GmailAuth exactly):
-  1. First call  → browser opens → user signs into Microsoft → token cached
-  2. Every call after → silent refresh, browser never opens again
-  3. Cache file: tools/survey/ms_token_cache.json  (mirrors token.json)
+ms_credentials.json format:
+  { "client_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" }
+
+App Registration is FREE — no Azure subscription needed.
+See README_MS365_SETUP.md for the 5-minute setup guide.
 """
 
 import os
+import json
 import msal
-
-# Microsoft's own Office desktop app client — pre-registered, no Azure setup needed.
-# Scope: least-privilege for Mail.Send + OneDrive AppFolder + basic profile.
-_CLIENT_ID = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
-_AUTHORITY  = "https://login.microsoftonline.com/common"
 
 SCOPES = [
     "https://graph.microsoft.com/Mail.Send",
@@ -30,23 +27,37 @@ SCOPES = [
 SURVEY_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
 )
-CACHE_FILE = os.path.join(SURVEY_DIR, "ms_token_cache.json")
+CREDENTIALS_FILE = os.path.join(SURVEY_DIR, "ms_credentials.json")
+CACHE_FILE       = os.path.join(SURVEY_DIR, "ms_token_cache.json")
+
+_AUTHORITY = "https://login.microsoftonline.com/common"
 
 
 class MicrosoftAuth:
     """
     Drop-in Microsoft equivalent of GmailAuth.
-    Call authenticate() → browser opens once → returns a valid access token.
+    Call authenticate() → returns a valid access token string.
     """
 
     def authenticate(self) -> str:
+        if not os.path.exists(CREDENTIALS_FILE):
+            raise FileNotFoundError(
+                "ms_credentials.json not found in tools/survey/.\n"
+                "Follow README_MS365_SETUP.md for the one-time setup (5 minutes, free).\n"
+                "No Azure subscription required — only a free App Registration."
+            )
+
+        with open(CREDENTIALS_FILE) as fh:
+            config = json.load(fh)
+        client_id = config["client_id"]
+
         cache = msal.SerializableTokenCache()
         if os.path.exists(CACHE_FILE):
             with open(CACHE_FILE) as fh:
                 cache.deserialize(fh.read())
 
         app = msal.PublicClientApplication(
-            _CLIENT_ID,
+            client_id,
             authority=_AUTHORITY,
             token_cache=cache,
         )
@@ -57,17 +68,18 @@ class MicrosoftAuth:
         if accounts:
             result = app.acquire_token_silent(SCOPES, account=accounts[0])
 
-        # First time (or cache expired) — open the real Microsoft login page
+        # First time (or cache expired) — opens the real Microsoft login page in browser
         if not result:
             result = app.acquire_token_interactive(scopes=SCOPES)
 
         if not result or "error" in result:
             raise RuntimeError(
-                f"Microsoft sign-in failed: "
-                f"{result.get('error_description', result.get('error', 'unknown error')) if result else 'no response'}"
+                "Microsoft sign-in failed: "
+                + (result.get("error_description") or result.get("error") or "unknown")
+                if result else "Microsoft sign-in failed: no response"
             )
 
-        # Persist cache so the next call is always silent
+        # Persist cache so every subsequent call is silent
         if cache.has_state_changed:
             os.makedirs(SURVEY_DIR, exist_ok=True)
             with open(CACHE_FILE, "w") as fh:

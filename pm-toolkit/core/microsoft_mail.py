@@ -1,6 +1,6 @@
 """
 MicrosoftMail — sends HTML survey invitation emails via Microsoft Graph /me/sendMail.
-Mirrors the Gmail send approach — same public API, same call sites.
+Mirrors the Gmail send approach — identical public API.
 """
 from core.microsoft_graph_client import MicrosoftGraphClient
 
@@ -16,7 +16,7 @@ class MicrosoftMail:
         survey_url: str,
         deadline: str,
     ) -> int:
-        """Send one invitation per recipient. Returns number sent successfully."""
+        """Send one invitation per recipient. Returns count sent successfully."""
         subject = f"Survey Request: {topic}"
         body_html = self._build_body(topic, survey_url, deadline)
         sent = 0

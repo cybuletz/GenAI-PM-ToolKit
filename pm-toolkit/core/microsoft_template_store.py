@@ -44,7 +44,9 @@ class MicrosoftTemplateStore:
         self._save()
 
     def delete_template(self, template_id: str):
-        self._data["templates"] = [t for t in self._data["templates"] if t["id"] != template_id]
+        self._data["templates"] = [
+            t for t in self._data["templates"] if t["id"] != template_id
+        ]
         self._save()
 
     def record_use(self, template_id: str):

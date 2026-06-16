@@ -1,6 +1,6 @@
 """
 MicrosoftGraphClient — thin requests wrapper around the Microsoft Graph REST API.
-Auto-injects the Bearer token and retries on 429 (rate-limit) and 5xx responses.
+Auto-injects Bearer token, retries on 429 / 5xx.
 """
 import time
 import requests
@@ -25,7 +25,7 @@ class MicrosoftGraphClient:
         return self._request("POST", path, json=json, **kwargs)
 
     def put(self, path: str, data: bytes = None, headers: dict = None) -> requests.Response:
-        """Raw PUT for OneDrive binary uploads; returns the Response object."""
+        """Raw PUT for OneDrive binary uploads — returns the Response object."""
         hdrs = {"Authorization": f"Bearer {self._token}"}
         if headers:
             hdrs.update(headers)
