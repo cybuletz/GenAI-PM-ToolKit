@@ -3,18 +3,12 @@ import threading
 import requests as _requests
 from core.gmail_auth import GmailAuth
 
-# GitHub Models API — used to fetch available chat models
 _MODELS_LIST_URL = "https://models.inference.ai.azure.com/models"
-# Sane fallback if the API call fails or returns nothing useful
 _FALLBACK_MODELS = ["gpt-4o", "gpt-4.1", "gpt-4o-mini",
                     "claude-3-5-sonnet", "claude-3-7-sonnet"]
 
 
 def fetch_available_models(token: str) -> list[str]:
-    """
-    Call the GitHub Models catalogue endpoint and return all model IDs.
-    Falls back to _FALLBACK_MODELS on any error.
-    """
     try:
         resp = _requests.get(
             _MODELS_LIST_URL,
@@ -100,71 +94,13 @@ class _PATDialog(ctk.CTkToplevel):
         self.destroy()
 
 
-class _MSClientIDDialog(ctk.CTkToplevel):
-    """Dialog to enter the Azure App Client ID for Microsoft 365 sign-in."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Microsoft 365 \u2013 Sign In")
-        self.geometry("520x300")
-        self.resizable(False, False)
-        self.grab_set()
-        self.result: str = ""
-        self._build()
-
-    def _build(self):
-        pad = {"padx": 24, "pady": 8}
-        ctk.CTkLabel(
-            self,
-            text="Enter your Azure App (Client) ID",
-            font=ctk.CTkFont(size=14, weight="bold")
-        ).pack(**pad, anchor="w")
-        ctk.CTkLabel(
-            self,
-            text=(
-                "Register a public-client app at portal.azure.com\n"
-                "  \u2022 Redirect URI: http://localhost  (Mobile/Desktop)\n"
-                "  \u2022 Delegated scopes: Mail.Send, Files.ReadWrite.AppFolder, User.Read\n"
-                "Paste the Application (client) ID below:"
-            ),
-            font=ctk.CTkFont(size=12),
-            text_color="gray",
-            justify="left"
-        ).pack(padx=24, pady=(0, 8), anchor="w")
-        self.entry = ctk.CTkEntry(
-            self, width=460, height=36,
-            font=ctk.CTkFont(size=13),
-            placeholder_text="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        )
-        self.entry.pack(padx=24, pady=(0, 4))
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(padx=24, fill="x", pady=(12, 0))
-        ctk.CTkButton(
-            btn_frame, text="Sign In", width=110, height=34,
-            command=self._save
-        ).pack(side="right", padx=(8, 0))
-        ctk.CTkButton(
-            btn_frame, text="Cancel", width=100, height=34,
-            fg_color=("gray80", "gray30"),
-            text_color=("gray10", "gray90"),
-            hover_color=("gray70", "gray40"),
-            command=self.destroy
-        ).pack(side="right")
-
-    def _save(self):
-        cid = self.entry.get().strip()
-        if cid:
-            self.result = cid
-        self.destroy()
-
-
 class SettingsBar(ctk.CTkFrame):
     def __init__(self, parent, settings: dict, save_settings_fn, on_theme_change):
         super().__init__(parent, height=48, corner_radius=0)
         self.settings = settings
         self.save_settings_fn = save_settings_fn
         self.on_theme_change = on_theme_change
-        # 8 columns: Gmail label/btn, M365 label/btn, Copilot label/btn, Model label/menu
+        # columns: Gmail lbl/btn | M365 lbl/btn | Copilot lbl/btn | Model lbl/menu(expands)
         self.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6), weight=0)
         self.grid_columnconfigure(7, weight=1)
         self._build()
@@ -178,25 +114,17 @@ class SettingsBar(ctk.CTkFrame):
             self,
             text="\u2705 Connected" if gmail_connected else "Sign In",
             width=110, height=28, font=ctk.CTkFont(size=12),
-            fg_color=("\u2705 Connected" and ("#2ecc71", "#27ae60")
-                      if gmail_connected else ("gray80", "gray30")),
-            text_color=("gray10", "gray90"),
-            hover_color=("gray70", "gray40"),
-            command=self._gmail_signin
-        )
-        # Correct the fg_color expression
-        self.gmail_btn.configure(
             fg_color=("#2ecc71", "#27ae60") if gmail_connected else ("gray80", "gray30"),
-            hover_color=("\u2705 Connected" and ("#27ae60", "#219a52")
-                         if gmail_connected else ("gray70", "gray40"))
-        )
-        self.gmail_btn.configure(
-            hover_color=("#27ae60", "#219a52") if gmail_connected else ("gray70", "gray40")
+            text_color=("gray10", "gray90"),
+            hover_color=("#27ae60", "#219a52") if gmail_connected else ("gray70", "gray40"),
+            command=self._gmail_signin
         )
         self.gmail_btn.grid(row=0, column=1, padx=(0, 24), pady=8)
 
-        # ---- Microsoft 365 ------------------------------------------- #
-        ms_connected = bool(self.settings.get("ms_client_id"))
+        # ---- Microsoft 365 — same pattern as Gmail ------------------- #
+        # ms_token_cache.json presence = previously signed in
+        ms_token_path = self._ms_token_path()
+        ms_connected = ms_token_path is not None
         ctk.CTkLabel(self, text="M365:", font=ctk.CTkFont(size=12)).grid(
             row=0, column=2, padx=(0, 4), pady=8)
         self.ms_btn = ctk.CTkButton(
@@ -247,6 +175,16 @@ class SettingsBar(ctk.CTkFrame):
         if self.settings.get("github_token"):
             self._refresh_model_list(self.settings["github_token"])
 
+    @staticmethod
+    def _ms_token_path():
+        """Return the ms_token_cache.json path if it exists, else None."""
+        import os
+        survey_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
+        )
+        p = os.path.join(survey_dir, "ms_token_cache.json")
+        return p if os.path.exists(p) else None
+
     def _refresh_model_list(self, token: str):
         def run():
             models = fetch_available_models(token)
@@ -277,33 +215,55 @@ class SettingsBar(ctk.CTkFrame):
         threading.Thread(target=do_auth, daemon=True).start()
 
     def _ms365_signin(self):
-        dialog = _MSClientIDDialog(self)
-        self.wait_window(dialog)
-        client_id = dialog.result
-        if not client_id:
-            return
-
+        """
+        Authenticate with Microsoft 365.
+        Reads tools/survey/ms_credentials.json (same pattern as Gmail credentials.json).
+        Opens the real Microsoft login page in the browser — no dialog, no manual URL.
+        Subsequent sign-ins are silent (token cached in ms_token_cache.json).
+        """
         def do_auth():
             try:
-                import os
-                os.environ["MS_CLIENT_ID"] = client_id
                 from core.microsoft_auth import MicrosoftAuth
-                auth = MicrosoftAuth(client_id=client_id)
-                auth.authenticate()          # opens browser once; caches token
-                self.settings["ms_client_id"] = client_id
-                self.save_settings_fn(self.settings)
+                auth = MicrosoftAuth()
+                auth.authenticate()   # browser opens on first call; silent thereafter
                 self.after(0, lambda: self.ms_btn.configure(
                     text="\u2705 Connected",
                     fg_color=("#2ecc71", "#27ae60"),
                     hover_color=("#27ae60", "#219a52"),
                     text_color=("gray10", "gray90"),
                 ))
+            except FileNotFoundError as e:
+                # ms_credentials.json missing — show a clear one-time message
+                self.after(0, lambda: self.ms_btn.configure(
+                    text="\u26a0\ufe0f Setup needed",
+                    fg_color=("#e67e22", "#d35400"),
+                    hover_color=("#d35400", "#b94600"),
+                    text_color=("white", "white"),
+                ))
+                self.after(0, lambda: self._show_ms_setup_hint(str(e)))
             except Exception as e:
                 self.after(0, lambda: self.ms_btn.configure(
                     text="\u274c Failed",
                     fg_color=("#e74c3c", "#c0392b"),
                 ))
         threading.Thread(target=do_auth, daemon=True).start()
+
+    def _show_ms_setup_hint(self, message: str):
+        """Show a small non-blocking popup with setup instructions."""
+        win = ctk.CTkToplevel(self)
+        win.title("Microsoft 365 — One-time Setup")
+        win.geometry("520x220")
+        win.resizable(False, False)
+        win.grab_set()
+        ctk.CTkLabel(
+            win,
+            text=message,
+            font=ctk.CTkFont(size=12),
+            text_color="gray",
+            justify="left",
+            wraplength=480,
+        ).pack(padx=20, pady=(20, 12), anchor="w")
+        ctk.CTkButton(win, text="OK", width=80, command=win.destroy).pack(pady=(0, 16))
 
     def _github_signin(self):
         dialog = _PATDialog(self)
