@@ -1,8 +1,5 @@
 """
-MicrosoftTemplateStore — persists survey question templates to OneDrive.
-
-File: Apps/PMToolkit/pm_toolkit_templates.json
-
+MicrosoftTemplateStore — persists survey templates to OneDrive Apps/PMToolkit/pm_toolkit_templates.json.
 Mirrors TemplateStore (Google Drive) with identical public API.
 """
 import json
@@ -19,10 +16,6 @@ class MicrosoftTemplateStore:
     def __init__(self, access_token: str):
         self._client = MicrosoftGraphClient(access_token)
         self._item_id, self._data = self._load_or_create()
-
-    # ------------------------------------------------------------------ #
-    #  Public API  (same surface as TemplateStore)                       #
-    # ------------------------------------------------------------------ #
 
     def all_templates(self) -> list:
         def sort_key(t):
@@ -51,9 +44,7 @@ class MicrosoftTemplateStore:
         self._save()
 
     def delete_template(self, template_id: str):
-        self._data["templates"] = [
-            t for t in self._data["templates"] if t["id"] != template_id
-        ]
+        self._data["templates"] = [t for t in self._data["templates"] if t["id"] != template_id]
         self._save()
 
     def record_use(self, template_id: str):
@@ -64,10 +55,6 @@ class MicrosoftTemplateStore:
                 break
         self._save()
 
-    # ------------------------------------------------------------------ #
-    #  Internal helpers                                                   #
-    # ------------------------------------------------------------------ #
-
     def _load_or_create(self) -> tuple:
         try:
             meta = self._client.get(f"/me/drive/root:/{TEMPLATES_PATH}")
@@ -77,21 +64,18 @@ class MicrosoftTemplateStore:
                 timeout=15,
             )
             content_resp.raise_for_status()
-            data = json.loads(content_resp.content.decode("utf-8"))
-            return item_id, data
+            return item_id, json.loads(content_resp.content.decode("utf-8"))
         except Exception:
             empty = {"templates": []}
-            item_id = self._upload(TEMPLATES_FILENAME, empty)
-            return item_id, empty
+            return self._upload(TEMPLATES_FILENAME, empty), empty
 
     def _save(self):
         self._item_id = self._upload(TEMPLATES_FILENAME, self._data)
 
     def _upload(self, filename: str, data: dict) -> str:
-        content = json.dumps(data, indent=2).encode("utf-8")
         resp = self._client.put(
             f"/me/drive/root:/{ONEDRIVE_FOLDER}/{filename}:/content",
-            data=content,
+            data=json.dumps(data, indent=2).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
         resp.raise_for_status()

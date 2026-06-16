@@ -16,10 +16,7 @@ class MicrosoftMail:
         survey_url: str,
         deadline: str,
     ) -> int:
-        """
-        Send one email per recipient with a link to the lightweight survey page.
-        Returns the number of emails sent successfully.
-        """
+        """Send one invitation per recipient. Returns number sent successfully."""
         subject = f"Survey Request: {topic}"
         body_html = self._build_body(topic, survey_url, deadline)
         sent = 0

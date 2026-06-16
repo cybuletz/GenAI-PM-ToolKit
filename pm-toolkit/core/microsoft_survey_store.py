@@ -1,11 +1,6 @@
 """
-MicrosoftSurveyStore — persists the survey index to a single JSON file
-in the user's OneDrive /Apps/PMToolkit/ folder (app-folder pattern).
-
-File: Apps/PMToolkit/pm_toolkit_surveys.json
-
-On any machine, as long as the user signs in with the same Microsoft account,
-the full survey history is available — mirrors the Google Drive SurveyStore.
+MicrosoftSurveyStore — persists the survey index to OneDrive Apps/PMToolkit/pm_toolkit_surveys.json.
+Mirrors SurveyStore (Google Drive) with identical public API.
 """
 import json
 import uuid
@@ -22,13 +17,8 @@ class MicrosoftSurveyStore:
         self._client = MicrosoftGraphClient(access_token)
         self._item_id, self._data = self._load_or_create()
 
-    # ------------------------------------------------------------------ #
-    #  Public API  (same surface as SurveyStore)                         #
-    # ------------------------------------------------------------------ #
-
     def all_surveys(self) -> list:
-        return sorted(self._data["surveys"],
-                      key=lambda s: s["sent_at"], reverse=True)
+        return sorted(self._data["surveys"], key=lambda s: s["sent_at"], reverse=True)
 
     def add_survey(self, title: str, survey_id: str, survey_url: str,
                    recipients: list, question_count: int) -> dict:
@@ -56,10 +46,6 @@ class MicrosoftSurveyStore:
     def last_n(self, n: int) -> list:
         return self.all_surveys()[:n]
 
-    # ------------------------------------------------------------------ #
-    #  Internal helpers                                                   #
-    # ------------------------------------------------------------------ #
-
     def _load_or_create(self) -> tuple:
         try:
             meta = self._client.get(f"/me/drive/root:/{INDEX_PATH}")
@@ -69,21 +55,18 @@ class MicrosoftSurveyStore:
                 timeout=15,
             )
             content_resp.raise_for_status()
-            data = json.loads(content_resp.content.decode("utf-8"))
-            return item_id, data
+            return item_id, json.loads(content_resp.content.decode("utf-8"))
         except Exception:
             empty = {"surveys": []}
-            item_id = self._upload(INDEX_FILENAME, empty)
-            return item_id, empty
+            return self._upload(INDEX_FILENAME, empty), empty
 
     def _save(self):
         self._item_id = self._upload(INDEX_FILENAME, self._data)
 
     def _upload(self, filename: str, data: dict) -> str:
-        content = json.dumps(data, indent=2).encode("utf-8")
         resp = self._client.put(
             f"/me/drive/root:/{ONEDRIVE_FOLDER}/{filename}:/content",
-            data=content,
+            data=json.dumps(data, indent=2).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
         resp.raise_for_status()

@@ -18,10 +18,6 @@ class MicrosoftGraphClient:
              "Content-Type": "application/json"}
         )
 
-    # ------------------------------------------------------------------ #
-    #  Low-level helpers                                                   #
-    # ------------------------------------------------------------------ #
-
     def get(self, path: str, **kwargs) -> dict:
         return self._request("GET", path, **kwargs)
 
@@ -29,7 +25,7 @@ class MicrosoftGraphClient:
         return self._request("POST", path, json=json, **kwargs)
 
     def put(self, path: str, data: bytes = None, headers: dict = None) -> requests.Response:
-        """Raw PUT — used for OneDrive binary uploads; returns the Response."""
+        """Raw PUT for OneDrive binary uploads; returns the Response object."""
         hdrs = {"Authorization": f"Bearer {self._token}"}
         if headers:
             hdrs.update(headers)
