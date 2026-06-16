@@ -1,7 +1,7 @@
 """
-MicrosoftResponseCollector — reads survey responses stored in OneDrive
-at Apps/PMToolkit/responses/<survey_id>.json.
-Mirrors ResponseCollector public API.
+MicrosoftResponseCollector — reads survey responses from OneDrive
+Apps/PMToolkit/responses/<survey_id>.json.
+Mirrors ResponseCollector public API exactly.
 """
 import json
 from core.microsoft_graph_client import MicrosoftGraphClient

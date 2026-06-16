@@ -1,6 +1,6 @@
 """
-MicrosoftSurveyStore — persists the survey index to OneDrive Apps/PMToolkit/pm_toolkit_surveys.json.
-Mirrors SurveyStore (Google Drive) with identical public API.
+MicrosoftSurveyStore — persists survey index to OneDrive Apps/PMToolkit/pm_toolkit_surveys.json.
+Mirrors SurveyStore public API exactly.
 """
 import json
 import uuid

@@ -1,6 +1,6 @@
 """
-MicrosoftTemplateStore — persists survey templates to OneDrive Apps/PMToolkit/pm_toolkit_templates.json.
-Mirrors TemplateStore (Google Drive) with identical public API.
+MicrosoftTemplateStore — persists templates to OneDrive Apps/PMToolkit/pm_toolkit_templates.json.
+Mirrors TemplateStore public API exactly.
 """
 import json
 import uuid

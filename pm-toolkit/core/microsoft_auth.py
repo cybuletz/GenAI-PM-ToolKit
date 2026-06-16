@@ -1,19 +1,25 @@
 """
-MicrosoftAuth — MSAL interactive browser sign-in + silent token refresh.
+MicrosoftAuth — browser-redirect OAuth2 sign-in via MSAL.
 
-Mirrors GmailAuth exactly:
-  - Reads Client ID from tools/survey/ms_credentials.json  (one-time setup)
-  - Caches the token to tools/survey/ms_token_cache.json
-  - On subsequent calls: refreshes silently, never re-opens the browser
+Zero Azure setup required. Uses Microsoft's own pre-registered Office
+desktop client ID (d3590ed6-52b3-4102-aeff-aad2292ab01c), which is
+trusted by every personal, work, and school Microsoft account — identical
+to how Google's credentials.json is pre-created by the developer so
+end-users never touch the Google Cloud Console.
 
-ms_credentials.json format:
-  { "client_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" }
-
-The browser pop-up is a real Microsoft login page — same experience as Gmail.
+Flow (mirrors GmailAuth exactly):
+  1. First call  → browser opens → user signs into Microsoft → token cached
+  2. Every call after → silent refresh, browser never opens again
+  3. Cache file: tools/survey/ms_token_cache.json  (mirrors token.json)
 """
+
 import os
-import json
 import msal
+
+# Microsoft's own Office desktop app client — pre-registered, no Azure setup needed.
+# Scope: least-privilege for Mail.Send + OneDrive AppFolder + basic profile.
+_CLIENT_ID = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
+_AUTHORITY  = "https://login.microsoftonline.com/common"
 
 SCOPES = [
     "https://graph.microsoft.com/Mail.Send",
@@ -21,58 +27,49 @@ SCOPES = [
     "https://graph.microsoft.com/User.Read",
 ]
 
-SURVEY_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
-CREDENTIALS_FILE = os.path.abspath(os.path.join(SURVEY_DIR, "ms_credentials.json"))
-CACHE_FILE       = os.path.abspath(os.path.join(SURVEY_DIR, "ms_token_cache.json"))
+SURVEY_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "tools", "survey")
+)
+CACHE_FILE = os.path.join(SURVEY_DIR, "ms_token_cache.json")
 
 
 class MicrosoftAuth:
     """
     Drop-in Microsoft equivalent of GmailAuth.
-    Call authenticate() → returns a valid access token string.
+    Call authenticate() → browser opens once → returns a valid access token.
     """
 
     def authenticate(self) -> str:
-        if not os.path.exists(CREDENTIALS_FILE):
-            raise FileNotFoundError(
-                "ms_credentials.json not found in tools/survey/.\n"
-                "Create it with: { \"client_id\": \"<your-azure-app-id>\" }\n"
-                "Register a free public-client app at portal.azure.com — "
-                "see README for the 3-minute setup."
-            )
-        with open(CREDENTIALS_FILE) as fh:
-            config = json.load(fh)
-        client_id = config["client_id"]
-
         cache = msal.SerializableTokenCache()
         if os.path.exists(CACHE_FILE):
             with open(CACHE_FILE) as fh:
                 cache.deserialize(fh.read())
 
         app = msal.PublicClientApplication(
-            client_id,
-            authority="https://login.microsoftonline.com/common",
+            _CLIENT_ID,
+            authority=_AUTHORITY,
             token_cache=cache,
         )
 
-        # Try silent refresh first (no browser needed after first sign-in)
+        # Try silent refresh first — no browser needed after first sign-in
         result = None
         accounts = app.get_accounts()
         if accounts:
             result = app.acquire_token_silent(SCOPES, account=accounts[0])
 
-        # First time (or cache expired) — open the browser, just like Gmail
+        # First time (or cache expired) — open the real Microsoft login page
         if not result:
             result = app.acquire_token_interactive(scopes=SCOPES)
 
-        if "error" in result:
+        if not result or "error" in result:
             raise RuntimeError(
-                f"Microsoft sign-in failed: {result.get('error_description', result['error'])}"
+                f"Microsoft sign-in failed: "
+                f"{result.get('error_description', result.get('error', 'unknown error')) if result else 'no response'}"
             )
 
-        # Persist the updated cache so the next call is silent
+        # Persist cache so the next call is always silent
         if cache.has_state_changed:
-            os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+            os.makedirs(SURVEY_DIR, exist_ok=True)
             with open(CACHE_FILE, "w") as fh:
                 fh.write(cache.serialize())
 

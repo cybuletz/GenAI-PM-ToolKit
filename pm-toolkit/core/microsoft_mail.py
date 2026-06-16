@@ -1,6 +1,6 @@
 """
 MicrosoftMail — sends HTML survey invitation emails via Microsoft Graph /me/sendMail.
-Mirrors the Google Gmail send approach used by tools/survey/survey.py.
+Mirrors the Gmail send approach — same public API, same call sites.
 """
 from core.microsoft_graph_client import MicrosoftGraphClient
 

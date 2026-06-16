@@ -1,7 +1,7 @@
 """
 MicrosoftSurveyPublisher — generates a self-contained HTML survey page,
-uploads it to OneDrive Apps/PMToolkit/surveys/, and returns a shareable URL.
-No Microsoft Forms API needed.
+uploads it to OneDrive AppFolder (Apps/PMToolkit/surveys/), returns a share URL.
+No Azure, no external hosting — just OneDrive.
 """
 import json
 import uuid
