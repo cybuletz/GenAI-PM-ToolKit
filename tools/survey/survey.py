@@ -14,6 +14,7 @@ load_dotenv()
 
 SCOPES = [
     "https://www.googleapis.com/auth/forms.body",
+    "https://www.googleapis.com/auth/forms.responses.readonly",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/gmail.send",
 ]
@@ -31,7 +32,7 @@ def authenticate():
             creds.refresh(Request())
         else:
             if not os.path.exists(CREDENTIALS_FILE):
-                print("\n❌ ERROR: credentials.json not found in tools/survey/")
+                print("\n\u274c ERROR: credentials.json not found in tools/survey/")
                 print("Please follow the README setup steps to download your Google OAuth credentials.\n")
                 exit(1)
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
@@ -42,14 +43,17 @@ def authenticate():
 
 
 def create_form(service, title, questions):
-    print(f"\n📋 Creating form: {title}")
+    """Create a Google Form with the given questions.
+    Returns (form_id, form_url).
+    """
+    print(f"\n\U0001f4cb Creating form: {title}")
     form = service.forms().create(
         body={"info": {"title": title}}
     ).execute()
     form_id = form["formId"]
-    print(f"✅ Form created with ID: {form_id}")
+    print(f"\u2705 Form created with ID: {form_id}")
 
-    requests = []
+    requests_body = []
     for i, q in enumerate(questions):
         q_type = q.get("type", "text")
         if q_type == "scale":
@@ -69,7 +73,7 @@ def create_form(service, title, questions):
         else:
             question_body = {"textQuestion": {"paragraph": False}}
 
-        requests.append({
+        requests_body.append({
             "createItem": {
                 "item": {
                     "title": q["text"],
@@ -83,30 +87,29 @@ def create_form(service, title, questions):
 
     service.forms().batchUpdate(
         formId=form_id,
-        body={"requests": requests}
+        body={"requests": requests_body}
     ).execute()
 
-    print(f"✅ {len(questions)} questions added")
+    print(f"\u2705 {len(questions)} questions added")
     form_url = f"https://docs.google.com/forms/d/{form_id}/viewform"
-    print(f"🔗 Survey link: {form_url}")
+    print(f"\U0001f517 Survey link: {form_url}")
     return form_id, form_url
 
 
 def build_email_body(recipient_name, survey_title, form_url, deadline):
-    """Builds a friendly, context-rich HTML email body."""
     plain = f"""Hi {recipient_name},
 
 As part of our continuous improvement efforts, I'd like to invite you to share your feedback on: {survey_title}.
 
 Your input takes only a few minutes and directly helps the team improve how we work together.
 
-👉 Access the survey here: {form_url}
+\U0001f449 Access the survey here: {form_url}
 
 Please complete it by: {deadline}
 
 Your responses are anonymous and will be used to identify areas where we're doing well and where we can improve.
 
-Thank you for taking the time — it really makes a difference.
+Thank you for taking the time \u2014 it really makes a difference.
 
 Best regards,
 Your Project Manager
@@ -116,32 +119,23 @@ Your Project Manager
 <html>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333; max-width: 600px;">
   <p>Hi {recipient_name},</p>
-
   <p>As part of our continuous improvement efforts, I'd like to invite you to share your feedback on:</p>
-
-  <p style="font-size: 16px; font-weight: bold; color: #1a73e8;">📋 {survey_title}</p>
-
+  <p style="font-size: 16px; font-weight: bold; color: #1a73e8;">\U0001f4cb {survey_title}</p>
   <p>Your input takes only a few minutes and directly helps the team improve how we work together.</p>
-
   <p style="margin: 24px 0;">
     <a href="{form_url}"
        style="background-color: #1a73e8; color: white; padding: 12px 24px;
               text-decoration: none; border-radius: 4px; font-weight: bold;">
-      ✏️ Fill in the Survey
+      \u270f\ufe0f Fill in the Survey
     </a>
   </p>
-
-  <p>📅 <strong>Please complete it by: {deadline}</strong></p>
-
+  <p>\U0001f4c5 <strong>Please complete it by: {deadline}</strong></p>
   <p style="color: #666; font-size: 13px;">
     Your responses are anonymous and will be used to identify areas where we're doing well
     and where we can improve as a team.
   </p>
-
-  <p>Thank you for taking the time — it really makes a difference.</p>
-
+  <p>Thank you for taking the time \u2014 it really makes a difference.</p>
   <p>Best regards,<br><strong>Your Project Manager</strong></p>
-
   <hr style="border: none; border-top: 1px solid #eee; margin-top: 32px;">
   <p style="color: #aaa; font-size: 11px;">
     If the button above doesn't work, copy and paste this link into your browser:<br>
@@ -154,33 +148,26 @@ Your Project Manager
 
 
 def send_emails(gmail_service, emails, survey_title, form_url, deadline):
-    print(f"\n📧 Sending survey to {len(emails)} recipient(s)...")
-
+    print(f"\n\U0001f4e7 Sending survey to {len(emails)} recipient(s)...")
     sent = 0
     for email in emails:
         email = email.strip()
         if not email:
             continue
-
         recipient_name = email.split("@")[0].capitalize()
         plain, html = build_email_body(recipient_name, survey_title, form_url, deadline)
-
         message = MIMEMultipart("alternative")
         message["to"] = email
-        message["subject"] = f"📋 Your feedback needed: {survey_title}"
+        message["subject"] = f"\U0001f4cb Your feedback needed: {survey_title}"
         message.attach(MIMEText(plain, "plain"))
         message.attach(MIMEText(html, "html"))
-
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         gmail_service.users().messages().send(
-            userId="me",
-            body={"raw": raw}
+            userId="me", body={"raw": raw}
         ).execute()
-
-        print(f"  ✉️  Sent to {email}")
+        print(f"  \u2709\ufe0f  Sent to {email}")
         sent += 1
-
-    print(f"\n✅ Survey sent to {sent} recipient(s)")
+    print(f"\n\u2705 Survey sent to {sent} recipient(s)")
 
 
 def save_form_metadata(form_id, form_url, title, emails, deadline):
@@ -194,19 +181,18 @@ def save_form_metadata(form_id, form_url, title, emails, deadline):
     meta_path = os.path.join(os.path.dirname(__file__), "form_meta.json")
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2)
-    print(f"\n💾 Form metadata saved to tools/survey/form_meta.json")
+    print(f"\n\U0001f4be Form metadata saved to tools/survey/form_meta.json")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Create and send a Google Form survey")
-    parser.add_argument("--title", required=True, help="Survey title")
-    parser.add_argument("--emails", required=True, help="Comma-separated list of recipient emails")
-    parser.add_argument("--questions", required=True, help="Path to questions JSON file")
-    parser.add_argument("--deadline", default="end of this week", help="Response deadline (shown in email)")
+    parser.add_argument("--title", required=True)
+    parser.add_argument("--emails", required=True)
+    parser.add_argument("--questions", required=True)
+    parser.add_argument("--deadline", default="end of this week")
     args = parser.parse_args()
 
     emails = [e.strip() for e in args.emails.split(",")]
-
     with open(args.questions, "r") as f:
         questions = json.load(f)
 
@@ -218,9 +204,8 @@ def main():
     send_emails(gmail_service, emails, args.title, form_url, args.deadline)
     save_form_metadata(form_id, form_url, args.title, emails, args.deadline)
 
-    print("\n🎉 Done! Form created and survey sent successfully.")
-    print(f"➡️  To collect responses later, run:")
-    print(f"   python3 tools/survey/collect_responses.py")
+    print("\n\U0001f389 Done! Form created and survey sent.")
+    print(f"\U0001f4ca Collect responses any time by running: python collect_responses.py")
 
 
 if __name__ == "__main__":
