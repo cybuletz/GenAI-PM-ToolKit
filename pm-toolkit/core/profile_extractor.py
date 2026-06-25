@@ -11,13 +11,23 @@ RULES:
 - Do NOT use first-person language anywhere (no "I", "my", "we").
 - Do NOT use words: passionate, enthusiast, thrive, committed, driven, dedicated, love, enjoy.
 - Do NOT add marketing language or generic filler.
-- Profile field must be written in third-person, factual, consultant-style prose.
+- Profile field must be written in third-person, factual, consultant-style prose. Max 3 sentences.
 - All bullet points must start with a past-tense action verb.
 - All bullet points must be factual and concise, max 130 characters each.
 - Technologies list must be deduplicated and use official product names.
 - Competencies must be short labels, not sentences.
 - If a field has no data in the source, use empty string or empty list.
 - Return ONLY the JSON object. No explanation, no markdown fences, no extra text.
+- STRICT LIMITS — enforce these exactly:
+  * competencies: max 8 items
+  * technologies: max 20 items, deduplicated
+  * methodologies: max 6 items
+  * education: max 3 items
+  * certifications: max 3 items
+  * experience: max 5 employer entries
+  * employer_bullets: max 2 per employer
+  * projects per employer: max 4
+  * bullets per project: max 3 (pick the most impactful only)
 
 REQUIRED JSON SCHEMA:
 {
@@ -48,62 +58,69 @@ REQUIRED JSON SCHEMA:
 }"""
 
 
-def _iter_docx_paragraphs(doc):
+def _cell_text(cell) -> str:
+    """Return clean multi-line text from a cell, stripping blank lines."""
+    lines = [p.text.strip() for p in cell.paragraphs if p.text.strip()]
+    return "\n".join(lines)
+
+
+def _extract_docx_text(file_path: Path) -> str:
     """
-    Yield all paragraph texts from a DOCX document, including paragraphs
-    nested inside tables (which doc.paragraphs silently skips).
-    Traversal order: top-level body elements in document order, so table
-    rows appear in the same relative position as they do visually.
+    Walk a DOCX document emitting text in document order.
+    Handles the common CV table pattern where:
+      - Column 0 is empty (decorative)
+      - Column 1 holds employer name / date (merged across 3 rows)
+      - Column 2 holds the full job description (merged across all 3 rows)
+    Deduplicates merged cells by tracking their underlying _tc XML element id.
     """
+    from docx import Document
     from docx.oxml.ns import qn
     from docx.text.paragraph import Paragraph
-    from docx.table import Table, _Cell
+    from docx.table import Table
 
-    def iter_block_items(parent):
-        """
-        Recursively yield (paragraph_text, context_hint) tuples from any
-        block-level parent: Document body, table cell, or nested table cell.
-        context_hint is a short label injected before cell content so the AI
-        can correlate employer names (left column) with descriptions (right column).
-        """
-        # Determine the underlying XML element
-        if hasattr(parent, 'element'):
-            parent_elem = parent.element.body
-        elif hasattr(parent, '_tc'):
-            parent_elem = parent._tc
-        else:
-            parent_elem = parent
+    doc = Document(str(file_path))
+    output_lines = []
 
-        for child in parent_elem.iterchildren():
-            tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
-            if tag == 'p':
-                para = Paragraph(child, parent)
-                text = para.text.strip()
-                if text:
-                    yield text
-            elif tag == 'tbl':
-                tbl = Table(child, parent)
-                for row in tbl.rows:
-                    row_texts = []
-                    for cell in row.cells:
-                        cell_text = ' | '.join(
-                            t for t in (p.text.strip() for p in cell.paragraphs) if t
-                        )
-                        if cell_text:
-                            row_texts.append(cell_text)
-                    if row_texts:
-                        yield ' || '.join(row_texts)
+    # Track which _tc elements have already been emitted globally
+    emitted_tc_ids: set = set()
 
-    yield from iter_block_items(doc)
+    def emit_cell(cell) -> str | None:
+        tc_id = id(cell._tc)
+        if tc_id in emitted_tc_ids:
+            return None
+        emitted_tc_ids.add(tc_id)
+        return _cell_text(cell) or None
+
+    body = doc.element.body
+    for child in body.iterchildren():
+        tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+
+        if tag == 'p':
+            para = Paragraph(child, doc)
+            text = para.text.strip()
+            if text:
+                output_lines.append(text)
+
+        elif tag == 'tbl':
+            tbl = Table(child, doc)
+            for row in tbl.rows:
+                row_parts = []
+                for cell in row.cells:
+                    text = emit_cell(cell)
+                    if text:
+                        row_parts.append(text)
+                if row_parts:
+                    # If only one part, emit as plain line
+                    # If multiple, join with separator so AI can parse columns
+                    output_lines.append(' || '.join(row_parts))
+
+    return "\n".join(output_lines)
 
 
 def _extract_text_from_file(file_path: Path) -> str:
     suffix = file_path.suffix.lower()
     if suffix == ".docx":
-        from docx import Document
-        doc = Document(str(file_path))
-        lines = list(_iter_docx_paragraphs(doc))
-        return "\n".join(lines)
+        return _extract_docx_text(file_path)
     elif suffix == ".pdf":
         import fitz
         doc = fitz.open(str(file_path))
