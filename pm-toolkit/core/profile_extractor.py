@@ -7,28 +7,38 @@ SYSTEM_PROMPT = """You are a professional profile extraction assistant. Extract 
 
 RULES:
 - Extract ONLY facts explicitly stated in the source text.
-- Do NOT infer, invent, or embellish any information.
-- Do NOT use first-person language anywhere (no "I", "my", "we").
+- Do NOT use first-person language (no "I", "my", "we").
 - Do NOT use words: passionate, enthusiast, thrive, committed, driven, dedicated, love, enjoy.
 - Do NOT add marketing language or generic filler.
-- Profile field must be written in third-person, factual, consultant-style prose. Max 3 sentences.
+- Profile field: third-person, factual, consultant-style prose. Max 3 sentences.
 - All bullet points must start with a past-tense action verb.
-- All bullet points must be factual, specific, and impactful. Max 130 characters each.
-- Prioritize bullets that mention: technologies used, scale/numbers, business impact, or concrete outcomes.
+- All bullet points must be specific and impactful. Max 130 characters each.
+- Prioritize bullets mentioning: technologies, scale/numbers, business impact, concrete outcomes.
 - Technologies list must be deduplicated and use official product names.
 - Competencies must be short labels, not sentences.
-- If a field has no data in the source, use empty string or empty list.
+- If a field has no data, use empty string or empty list.
 - Return ONLY the JSON object. No explanation, no markdown fences, no extra text.
-- STRICT LIMITS — enforce these exactly:
+
+PROJECT EXTRACTION RULES (critical for filling the KEY PROJECTS section):
+- If the source explicitly names projects, use those names.
+- If no explicit project names exist for an employer, group the achievements and activities into
+  2-4 meaningful named projects based on themes (e.g. "Team Onboarding & Governance",
+  "KPI Tracking & Reporting", "Stakeholder & Risk Management", "Infrastructure Migration").
+- Each employer MUST have at least 2 projects (named or theme-grouped).
+- Never leave projects as an empty list if there are achievements or activities in the source.
+- employer_bullets: use only for high-level facts that don't fit any project (e.g. team size, geography).
+  If all content fits into projects, leave employer_bullets empty.
+
+STRICT LIMITS:
   * competencies: max 8 items
   * technologies: max 15 items, deduplicated
   * methodologies: max 5 items
   * education: max 2 items
   * certifications: max 3 items
   * experience: max 5 employer entries (most recent first)
-  * employer_bullets: max 2 per employer (most impactful overview facts)
-  * projects per employer: max 3 (most significant only)
-  * bullets per project: max 2 (concrete achievements with tech/scale/outcome)
+  * employer_bullets: max 2 per employer
+  * projects per employer: max 4
+  * bullets per project: max 2
   * role_subtitle: short role label only, max 5 words
 
 REQUIRED JSON SCHEMA:
