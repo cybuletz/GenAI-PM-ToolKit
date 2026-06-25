@@ -13,22 +13,23 @@ RULES:
 - Do NOT add marketing language or generic filler.
 - Profile field must be written in third-person, factual, consultant-style prose. Max 3 sentences.
 - All bullet points must start with a past-tense action verb.
-- All bullet points must be factual and concise, max 130 characters each.
+- All bullet points must be factual, specific, and impactful. Max 130 characters each.
+- Prioritize bullets that mention: technologies used, scale/numbers, business impact, or concrete outcomes.
 - Technologies list must be deduplicated and use official product names.
 - Competencies must be short labels, not sentences.
 - If a field has no data in the source, use empty string or empty list.
 - Return ONLY the JSON object. No explanation, no markdown fences, no extra text.
 - STRICT LIMITS — enforce these exactly:
   * competencies: max 8 items
-  * technologies: max 20 items, deduplicated
-  * methodologies: max 6 items
-  * education: max 3 items
+  * technologies: max 15 items, deduplicated
+  * methodologies: max 5 items
+  * education: max 2 items
   * certifications: max 3 items
   * experience: max 5 employer entries (most recent first)
-  * employer_bullets: max 2 per employer
-  * projects per employer: max 3
-  * bullets per project: max 2 (the single most impactful achievement only)
-  * role_subtitle: short role label only, max 5 words, e.g. 'Senior Java Developer'
+  * employer_bullets: max 2 per employer (most impactful overview facts)
+  * projects per employer: max 3 (most significant only)
+  * bullets per project: max 2 (concrete achievements with tech/scale/outcome)
+  * role_subtitle: short role label only, max 5 words
 
 REQUIRED JSON SCHEMA:
 {
@@ -60,7 +61,6 @@ REQUIRED JSON SCHEMA:
 
 
 def _cell_text(cell) -> str:
-    """Return clean multi-line text from a cell, stripping blank lines."""
     lines = [p.text.strip() for p in cell.paragraphs if p.text.strip()]
     return "\n".join(lines)
 
