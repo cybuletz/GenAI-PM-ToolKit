@@ -1,14 +1,13 @@
 import re
-from core.profile_schema import ProfileSchema, ExperienceEntry, ProjectEntry
+from core.profile_schema import ProfileSchema
 
 GENERIC_BULLETS = {"responsible for", "worked on", "involved in"}
 
 # KEY_PROJECTS content limits
-# Employer headings + project lines are compact (no blank lines between projects)
-# Budget: ~3 employers * (1 heading + 3 projects * (1 name + 2 bullets)) = ~30 lines
+# Reference PPTX (manually done) had: 2-3 employers, 3-5 projects each, 2-3 bullets each
+# All at sz=800, 100% line spacing - compact continuous flow
 MAX_EMPLOYERS = 3
-MAX_EMPLOYER_BULLETS = 1   # only used when employer has NO projects
-MAX_PROJECTS_PER_EMPLOYER = 3
+MAX_PROJECTS_PER_EMPLOYER = 4  # project names are short, pack well
 MAX_BULLETS_PER_PROJECT = 2
 
 
@@ -62,10 +61,8 @@ class ProfileTrimmer:
 
         trimmed_exp = []
         for entry in data["experience"][:MAX_EMPLOYERS]:
-            bullets = [b for b in entry["employer_bullets"] if not _is_generic(b)]
-            entry["employer_bullets"] = [
-                _trim_end(b, 120) for b in bullets[:MAX_EMPLOYER_BULLETS]
-            ]
+            # Drop employer-level bullets entirely - project bullets carry the content
+            entry["employer_bullets"] = []
             trimmed_projects = []
             for proj in entry["projects"][:MAX_PROJECTS_PER_EMPLOYER]:
                 proj_bullets = [b for b in proj["bullets"] if not _is_generic(b)]

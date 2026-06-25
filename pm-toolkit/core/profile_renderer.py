@@ -56,32 +56,30 @@ class ProfileRenderer:
         r["{{TECHNOLOGIES}}"] = ", ".join(profile.technologies)
         return r
 
-    def _build_projects_block(self, experience: list) -> str:
+    def _build_projects_block(self, experience: list) -> list:
         """
-        Compact format — no blank lines between entries.
-        Structure per employer:
-          EMPLOYER – ROLE / DATE          (bold)
-          • employer bullet (if any)      (normal, indented)
-          Project Name                    (normal, indented)
-          • bullet                        (normal, indented)
-        Blank line only between employers (not between projects).
+        Returns a list of (text, bold, use_sz) tuples instead of a flat string,
+        so the renderer can apply exact per-line formatting matching the reference PPTX.
+
+        Format (mirrors manual PPTX exactly):
+          Employer - Role / Date     bold, no explicit sz (inherits frame default)
+          Project Name               bold, sz=800
+          ' bullet text'             normal, sz=800, leading space
+          Project Name 2             bold, sz=800
+          ' bullet text'             normal, sz=800
+          [blank line between employers]
         """
-        lines = []
+        lines = []  # list of (text, bold, explicit_sz_or_None)
         for i, exp in enumerate(experience):
             if i > 0:
-                lines.append("")  # single blank line between employers only
+                lines.append(("", False, 800))  # blank separator between employers
             heading = f"{exp.employer} \u2013 {exp.role} / {exp.date_range}"
-            lines.append(heading)
-            # Employer-level bullets (max 1, only if no projects, to avoid redundancy)
-            if not exp.projects and exp.employer_bullets:
-                for b in exp.employer_bullets[:1]:
-                    lines.append(f"  \u2022 {b}")
-            # Projects - no blank line before/between them
+            lines.append((heading, True, None))  # employer heading: bold, inherit sz
             for proj in exp.projects:
-                lines.append(f"  {proj.project_name}")
+                lines.append((proj.project_name, True, 800))  # project name: bold, sz=800
                 for b in proj.bullets:
-                    lines.append(f"  \u2022 {b}")
-        return "\n".join(lines)
+                    lines.append((f" {b}", False, 800))  # bullet: normal, sz=800, leading space
+        return lines
 
     # ------------------------------------------------------------------
     # Per-shape replacement
@@ -139,23 +137,27 @@ class ProfileRenderer:
                     return
 
     # ------------------------------------------------------------------
-    # KEY_PROJECTS: rebuild entire text frame
+    # KEY_PROJECTS: rebuild text frame matching reference PPTX exactly
+    # Employer heading: bold, no explicit sz (inherits text frame default)
+    # Project name:     bold, sz=800
+    # Bullet line:      normal, sz=800, text has leading space
+    # Line spacing:     100% (pct:100000), no spcBef
     # ------------------------------------------------------------------
 
-    def _rebuild_projects_block(self, anchor_para, block_text: str):
+    def _rebuild_projects_block(self, anchor_para, line_specs: list):
+        """
+        line_specs: list of (text, bold, sz_or_None) from _build_projects_block
+        """
         tf_elem = anchor_para._p.getparent()
         existing_paras = tf_elem.findall(qn('a:p'))
 
-        base_sz = None
+        # Capture color and typeface from anchor para first run
         base_color = None
         base_typeface = None
         ref_runs = anchor_para._p.findall('.//' + qn('a:r'))
         if ref_runs:
             rPr = ref_runs[0].find(qn('a:rPr'))
             if rPr is not None:
-                sz = rPr.get('sz')
-                if sz:
-                    base_sz = int(sz)
                 sf = rPr.find('.//' + qn('a:solidFill'))
                 if sf is not None:
                     srgb = sf.find(qn('a:srgbClr'))
@@ -168,21 +170,17 @@ class ProfileRenderer:
         for p in existing_paras:
             tf_elem.remove(p)
 
-        def _make_p(text: str, bold: bool, small: bool = False):
+        def _make_p(text: str, bold: bool, sz):
             color_xml = ""
             if base_color:
                 color_xml = f'<a:solidFill><a:srgbClr val="{base_color}"/></a:solidFill>'
-            # Slightly smaller font for project names and bullets to pack more in
-            sz = (base_sz - 100) if (small and base_sz) else base_sz
-            sz_xml = f' sz="{sz}"' if sz else ''
+            sz_xml = f' sz="{sz}"' if sz is not None else ''
             b_xml = ' b="1"' if bold else ' b="0"'
             lat_xml = f'<a:latin typeface="{base_typeface}"/>' if base_typeface else ''
-            # Tighten line spacing via paragraph properties
-            spc_xml = '<a:lnSpc><a:spcPct val="90%"/></a:lnSpc>' if small else '<a:lnSpc><a:spcPct val="100%"/></a:lnSpc>'
             safe = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return parse_xml(
                 f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
-                f'<a:pPr>{spc_xml}</a:pPr>'
+                f'<a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr>'
                 f'<a:r>'
                 f'<a:rPr lang="en-US"{sz_xml}{b_xml} dirty="0">{color_xml}{lat_xml}</a:rPr>'
                 f'<a:t>{safe}</a:t>'
@@ -190,12 +188,9 @@ class ProfileRenderer:
                 f'</a:p>'
             )
 
-        lines = block_text.split("\n")
         prev_p = None
-        for line in lines:
-            is_employer_heading = bool(line) and not line.startswith("  ") and not line == ""
-            is_small = line.startswith("  ")  # project names and bullets
-            new_p = _make_p(line, bold=is_employer_heading, small=is_small)
+        for (text, bold, sz) in line_specs:
+            new_p = _make_p(text, bold=bold, sz=sz)
             if prev_p is None:
                 tf_elem.append(new_p)
             else:
