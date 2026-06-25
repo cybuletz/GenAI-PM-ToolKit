@@ -18,9 +18,24 @@ class ProfileRenderer:
         slide = prs.slides[slide_index]
         replacements = self._build_replacements(profile)
         for shape in slide.shapes:
-            if shape.has_text_frame:
-                self._replace_in_shape(shape, replacements, profile)
+            self._process_shape(shape, replacements, profile)
         prs.save(str(output_path))
+
+    # ------------------------------------------------------------------
+    # Shape traversal - recurses into groups
+    # ------------------------------------------------------------------
+
+    def _process_shape(self, shape, replacements, profile):
+        # GROUP shape (shape_type == 6): recurse into children
+        if shape.shape_type == 6:
+            try:
+                for child in shape.shapes:
+                    self._process_shape(child, replacements, profile)
+            except Exception:
+                pass
+            return
+        if shape.has_text_frame:
+            self._replace_in_shape(shape, replacements, profile)
 
     # ------------------------------------------------------------------
     # Build replacement dict
@@ -60,47 +75,27 @@ class ProfileRenderer:
         return "\n".join(lines)
 
     # ------------------------------------------------------------------
-    # Shape-level replacement dispatcher
+    # Per-shape replacement
     # ------------------------------------------------------------------
 
     def _replace_in_shape(self, shape, replacements: dict, profile: ProfileSchema):
         tf = shape.text_frame
         for para in tf.paragraphs:
-            # Get full text from ALL <a:t> nodes in this paragraph (catches split runs)
-            full_text = self._para_full_text(para)
-            if not full_text or "{{" not in full_text:
+            via_xml = "".join(
+                (t.text or "") for t in para._p.iter() if t.tag.endswith("}t")
+            )
+            if "{{" not in via_xml:
                 continue
 
-            # Check KEY_PROJECTS first (full text-frame rebuild)
-            if "{{KEY_PROJECTS}}" in full_text:
+            if "{{KEY_PROJECTS}}" in via_xml:
                 self._rebuild_projects_block(para, replacements["{{KEY_PROJECTS}}"])
-                return  # text frame rebuilt, stop processing this shape
+                return
 
-            # For all other tokens: apply ALL matching replacements to this paragraph
-            # by consolidating runs then doing string replacements
             self._apply_replacements_to_para(para, replacements)
 
-    def _para_full_text(self, para) -> str:
-        """Collect text from every <a:t> element in the paragraph XML, not just .runs."""
-        return "".join(
-            (t.text or "") for t in para._p.iter() if t.tag.endswith("}t")
-        )
-
     def _apply_replacements_to_para(self, para, replacements: dict):
-        """
-        Strategy:
-        1. Consolidate all <a:r> text into the first run (healing run-splits).
-        2. Also handle <a:t> nodes that live directly under the paragraph 
-           (rare but possible after some editors save).
-        3. Apply ALL token replacements in one pass on the consolidated text.
-        4. Write the final string back into the first run; blank all others.
-        5. For paragraphs where label runs (e.g. 'Education:') must keep their 
-           own formatting, only blank the run that CONTAINED the token, not the labels.
-        """
-        runs = para.runs  # only <a:r> elements
-
+        runs = para.runs
         if not runs:
-            # Tokens stored directly in <a:t> under <a:p> (no runs) — rare edge case
             for t_node in para._p.iter():
                 if t_node.tag.endswith("}t") and t_node.text and "{{" in t_node.text:
                     new_text = t_node.text
@@ -109,35 +104,17 @@ class ProfileRenderer:
                     t_node.text = new_text
             return
 
-        # --- Step 1: Identify which runs contain token fragments ---
-        # A token can be split across consecutive runs. We consolidate by scanning
-        # the raw XML text nodes and reconstructing per-run ownership.
-        
-        # Build a list of (run, original_text) pairs
-        run_texts = [(r, r.text or "") for r in runs]
-        combined = "".join(t for _, t in run_texts)
-
+        combined = "".join(r.text or "" for r in runs)
         if "{{" not in combined:
             return
 
-        # Apply all replacements on the combined string
         new_combined = combined
         for token, value in replacements.items():
             new_combined = new_combined.replace(token, value)
 
         if new_combined == combined:
-            return  # nothing changed
+            return
 
-        # --- Step 2: Write back ---
-        # Check if this paragraph has "label" runs (bold labels like 'Education:')
-        # that should keep their own text. We detect these as runs that don't contain
-        # any '{{' fragment and whose text doesn't change in new_combined.
-        # 
-        # Simple heuristic: if there are only 1-2 runs total, consolidate into run[0].
-        # If there are multiple runs AND the non-token runs have important formatting,
-        # try to write replacement only into the token-bearing run(s).
-        #
-        # Full safe approach: consolidate into run[0], preserve run[0]'s formatting.
         runs[0].text = new_combined
         for r in runs[1:]:
             r.text = ""
@@ -150,7 +127,6 @@ class ProfileRenderer:
         tf_elem = anchor_para._p.getparent()
         existing_paras = tf_elem.findall(qn('a:p'))
 
-        # Capture base style from anchor paragraph first <a:r>
         base_sz = None
         base_color = None
         base_typeface = None
@@ -170,7 +146,6 @@ class ProfileRenderer:
                 if lat is not None:
                     base_typeface = lat.get('typeface')
 
-        # Remove all existing paragraphs from this text frame
         for p in existing_paras:
             tf_elem.remove(p)
 
