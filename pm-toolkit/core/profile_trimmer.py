@@ -32,6 +32,9 @@ class ProfileTrimmer:
         data = profile.model_dump()
 
         data["profile"] = _trim_to_sentence(data["profile"], 600)
+        data["name"] = _trim_end(data["name"], 60)
+        data["role_title"] = _trim_end(data["role_title"], 120)
+        data["role_subtitle"] = _trim_end(data["role_subtitle"], 80)
 
         comps = [_trim_end(c, 45) for c in data["competencies"]]
         data["competencies"] = comps[:8]
@@ -49,19 +52,15 @@ class ProfileTrimmer:
         data["education"] = data["education"][:3]
         data["certifications"] = data.get("certifications", [])[:3]
 
-        data["role_title"] = _trim_end(data["role_title"], 120)
-        data["role_subtitle"] = _trim_end(data["role_subtitle"], 80)
-        data["name"] = _trim_end(data["name"], 60)
-
         trimmed_exp = []
         for entry in data["experience"][:5]:
             bullets = [b for b in entry["employer_bullets"] if not _is_generic(b)]
             entry["employer_bullets"] = bullets[:2]
 
             trimmed_projects = []
-            for proj in entry["projects"][:4]:
+            for proj in entry["projects"][:3]:  # max 3 projects per employer
                 proj_bullets = [b for b in proj["bullets"] if not _is_generic(b)]
-                proj["bullets"] = [_trim_end(b, 130) for b in proj_bullets[:4]]
+                proj["bullets"] = [_trim_end(b, 130) for b in proj_bullets[:2]]  # max 2 bullets per project
                 trimmed_projects.append(proj)
             entry["projects"] = trimmed_projects
             trimmed_exp.append(entry)
