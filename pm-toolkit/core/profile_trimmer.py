@@ -3,6 +3,12 @@ from core.profile_schema import ProfileSchema, ExperienceEntry, ProjectEntry
 
 GENERIC_BULLETS = {"responsible for", "worked on", "involved in"}
 
+# Hard cap on KEY_PROJECTS content to prevent overflow
+MAX_EMPLOYERS = 2
+MAX_PROJECTS_PER_EMPLOYER = 2
+MAX_BULLETS_PER_PROJECT = 1
+MAX_EMPLOYER_BULLETS = 2
+
 
 def _trim_to_sentence(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
@@ -46,21 +52,24 @@ class ProfileTrimmer:
             if norm.lower() not in seen:
                 seen.add(norm.lower())
                 techs.append(norm)
-        data["technologies"] = techs[:20]
+        data["technologies"] = techs[:15]
 
-        data["methodologies"] = data["methodologies"][:6]
-        data["education"] = data["education"][:3]
+        data["methodologies"] = data["methodologies"][:5]
+        data["education"] = data["education"][:2]
         data["certifications"] = data.get("certifications", [])[:3]
 
         trimmed_exp = []
-        for entry in data["experience"][:5]:
+        for entry in data["experience"][:MAX_EMPLOYERS]:
             bullets = [b for b in entry["employer_bullets"] if not _is_generic(b)]
-            entry["employer_bullets"] = bullets[:2]
-
+            entry["employer_bullets"] = [
+                _trim_end(b, 120) for b in bullets[:MAX_EMPLOYER_BULLETS]
+            ]
             trimmed_projects = []
-            for proj in entry["projects"][:3]:  # max 3 projects per employer
+            for proj in entry["projects"][:MAX_PROJECTS_PER_EMPLOYER]:
                 proj_bullets = [b for b in proj["bullets"] if not _is_generic(b)]
-                proj["bullets"] = [_trim_end(b, 130) for b in proj_bullets[:2]]  # max 2 bullets per project
+                proj["bullets"] = [
+                    _trim_end(b, 120) for b in proj_bullets[:MAX_BULLETS_PER_PROJECT]
+                ]
                 trimmed_projects.append(proj)
             entry["projects"] = trimmed_projects
             trimmed_exp.append(entry)

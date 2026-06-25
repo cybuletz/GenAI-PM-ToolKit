@@ -26,8 +26,7 @@ class ProfileRenderer:
     # ------------------------------------------------------------------
 
     def _process_shape(self, shape, replacements, profile):
-        # GROUP shape (shape_type == 6): recurse into children
-        if shape.shape_type == 6:
+        if shape.shape_type == 6:  # GROUP
             try:
                 for child in shape.shapes:
                     self._process_shape(child, replacements, profile)
@@ -68,7 +67,7 @@ class ProfileRenderer:
                 lines.append(f"  \u2022 {b}")
             for proj in exp.projects:
                 lines.append("")
-                proj_heading = f"  {proj.project_name} / {proj.date_range}"
+                proj_heading = f"  {proj.project_name}"
                 lines.append(proj_heading)
                 for b in proj.bullets:
                     lines.append(f"  \u2022 {b}")
@@ -86,38 +85,69 @@ class ProfileRenderer:
             )
             if "{{" not in via_xml:
                 continue
-
             if "{{KEY_PROJECTS}}" in via_xml:
                 self._rebuild_projects_block(para, replacements["{{KEY_PROJECTS}}"])
                 return
-
             self._apply_replacements_to_para(para, replacements)
 
     def _apply_replacements_to_para(self, para, replacements: dict):
+        """
+        Replace tokens while preserving per-run formatting.
+        Strategy:
+        - First try to replace token within the run that contains it (ideal: no split).
+        - If a token is split across runs, heal those specific runs then replace.
+        """
         runs = para.runs
         if not runs:
+            # No runs — tokens in bare <a:t> nodes
             for t_node in para._p.iter():
                 if t_node.tag.endswith("}t") and t_node.text and "{{" in t_node.text:
-                    new_text = t_node.text
                     for token, value in replacements.items():
-                        new_text = new_text.replace(token, value)
-                    t_node.text = new_text
+                        t_node.text = t_node.text.replace(token, value)
             return
 
+        # Build the full text to check if any token is present
         combined = "".join(r.text or "" for r in runs)
         if "{{" not in combined:
             return
 
-        new_combined = combined
+        # For each token, try replacing within individual runs first (preserves formatting)
         for token, value in replacements.items():
-            new_combined = new_combined.replace(token, value)
+            if token not in combined:
+                continue
 
-        if new_combined == combined:
-            return
+            # Check if token lives entirely within a single run
+            replaced_in_run = False
+            for run in runs:
+                if token in (run.text or ""):
+                    run.text = run.text.replace(token, value)
+                    replaced_in_run = True
+                    break
 
-        runs[0].text = new_combined
-        for r in runs[1:]:
-            r.text = ""
+            if not replaced_in_run:
+                # Token is split across runs — find the span of runs that together contain it
+                # and consolidate just those runs into the first of them
+                self._heal_split_token(runs, token, value)
+
+            # Rebuild combined after each replacement
+            combined = "".join(r.text or "" for r in runs)
+
+    def _heal_split_token(self, runs, token: str, value: str):
+        """
+        Find the minimal consecutive run range whose concatenated text contains
+        the token, consolidate those runs into the first, then replace.
+        """
+        texts = [r.text or "" for r in runs]
+        n = len(texts)
+        for start in range(n):
+            for end in range(start + 1, n + 1):
+                segment = "".join(texts[start:end])
+                if token in segment:
+                    new_text = segment.replace(token, value)
+                    runs[start].text = new_text
+                    for i in range(start + 1, end):
+                        runs[i].text = ""
+                    return
 
     # ------------------------------------------------------------------
     # KEY_PROJECTS: rebuild entire text frame
