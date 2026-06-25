@@ -4,11 +4,12 @@ from core.profile_schema import ProfileSchema, ExperienceEntry, ProjectEntry
 GENERIC_BULLETS = {"responsible for", "worked on", "involved in"}
 
 # KEY_PROJECTS content limits
-# Tuned to fill the section without overflowing into CORE COMPETENCIES
-MAX_EMPLOYERS = 3          # show top 3 most recent employers
-MAX_EMPLOYER_BULLETS = 2   # up to 2 overview bullets per employer
-MAX_PROJECTS_PER_EMPLOYER = 3  # up to 3 projects per employer
-MAX_BULLETS_PER_PROJECT = 2    # up to 2 bullets per project
+# Employer headings + project lines are compact (no blank lines between projects)
+# Budget: ~3 employers * (1 heading + 3 projects * (1 name + 2 bullets)) = ~30 lines
+MAX_EMPLOYERS = 3
+MAX_EMPLOYER_BULLETS = 1   # only used when employer has NO projects
+MAX_PROJECTS_PER_EMPLOYER = 3
+MAX_BULLETS_PER_PROJECT = 2
 
 
 def _trim_to_sentence(text: str, max_chars: int) -> str:

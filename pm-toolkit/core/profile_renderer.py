@@ -57,18 +57,28 @@ class ProfileRenderer:
         return r
 
     def _build_projects_block(self, experience: list) -> str:
+        """
+        Compact format — no blank lines between entries.
+        Structure per employer:
+          EMPLOYER – ROLE / DATE          (bold)
+          • employer bullet (if any)      (normal, indented)
+          Project Name                    (normal, indented)
+          • bullet                        (normal, indented)
+        Blank line only between employers (not between projects).
+        """
         lines = []
         for i, exp in enumerate(experience):
             if i > 0:
-                lines.append("")
+                lines.append("")  # single blank line between employers only
             heading = f"{exp.employer} \u2013 {exp.role} / {exp.date_range}"
             lines.append(heading)
-            for b in exp.employer_bullets:
-                lines.append(f"  \u2022 {b}")
+            # Employer-level bullets (max 1, only if no projects, to avoid redundancy)
+            if not exp.projects and exp.employer_bullets:
+                for b in exp.employer_bullets[:1]:
+                    lines.append(f"  \u2022 {b}")
+            # Projects - no blank line before/between them
             for proj in exp.projects:
-                lines.append("")
-                proj_heading = f"  {proj.project_name}"
-                lines.append(proj_heading)
+                lines.append(f"  {proj.project_name}")
                 for b in proj.bullets:
                     lines.append(f"  \u2022 {b}")
         return "\n".join(lines)
@@ -91,60 +101,39 @@ class ProfileRenderer:
             self._apply_replacements_to_para(para, replacements)
 
     def _apply_replacements_to_para(self, para, replacements: dict):
-        """
-        Replace tokens while preserving per-run formatting.
-        Strategy:
-        - First try to replace token within the run that contains it (ideal: no split).
-        - If a token is split across runs, heal those specific runs then replace.
-        """
         runs = para.runs
         if not runs:
-            # No runs — tokens in bare <a:t> nodes
             for t_node in para._p.iter():
                 if t_node.tag.endswith("}t") and t_node.text and "{{" in t_node.text:
                     for token, value in replacements.items():
                         t_node.text = t_node.text.replace(token, value)
             return
 
-        # Build the full text to check if any token is present
         combined = "".join(r.text or "" for r in runs)
         if "{{" not in combined:
             return
 
-        # For each token, try replacing within individual runs first (preserves formatting)
         for token, value in replacements.items():
             if token not in combined:
                 continue
-
-            # Check if token lives entirely within a single run
             replaced_in_run = False
             for run in runs:
                 if token in (run.text or ""):
                     run.text = run.text.replace(token, value)
                     replaced_in_run = True
                     break
-
             if not replaced_in_run:
-                # Token is split across runs — find the span of runs that together contain it
-                # and consolidate just those runs into the first of them
                 self._heal_split_token(runs, token, value)
-
-            # Rebuild combined after each replacement
             combined = "".join(r.text or "" for r in runs)
 
     def _heal_split_token(self, runs, token: str, value: str):
-        """
-        Find the minimal consecutive run range whose concatenated text contains
-        the token, consolidate those runs into the first, then replace.
-        """
         texts = [r.text or "" for r in runs]
         n = len(texts)
         for start in range(n):
             for end in range(start + 1, n + 1):
                 segment = "".join(texts[start:end])
                 if token in segment:
-                    new_text = segment.replace(token, value)
-                    runs[start].text = new_text
+                    runs[start].text = segment.replace(token, value)
                     for i in range(start + 1, end):
                         runs[i].text = ""
                     return
@@ -179,16 +168,21 @@ class ProfileRenderer:
         for p in existing_paras:
             tf_elem.remove(p)
 
-        def _make_p(text: str, bold: bool):
+        def _make_p(text: str, bold: bool, small: bool = False):
             color_xml = ""
             if base_color:
                 color_xml = f'<a:solidFill><a:srgbClr val="{base_color}"/></a:solidFill>'
-            sz_xml = f' sz="{base_sz}"' if base_sz else ''
+            # Slightly smaller font for project names and bullets to pack more in
+            sz = (base_sz - 100) if (small and base_sz) else base_sz
+            sz_xml = f' sz="{sz}"' if sz else ''
             b_xml = ' b="1"' if bold else ' b="0"'
             lat_xml = f'<a:latin typeface="{base_typeface}"/>' if base_typeface else ''
+            # Tighten line spacing via paragraph properties
+            spc_xml = '<a:lnSpc><a:spcPct val="90%"/></a:lnSpc>' if small else '<a:lnSpc><a:spcPct val="100%"/></a:lnSpc>'
             safe = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return parse_xml(
                 f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                f'<a:pPr>{spc_xml}</a:pPr>'
                 f'<a:r>'
                 f'<a:rPr lang="en-US"{sz_xml}{b_xml} dirty="0">{color_xml}{lat_xml}</a:rPr>'
                 f'<a:t>{safe}</a:t>'
@@ -199,8 +193,9 @@ class ProfileRenderer:
         lines = block_text.split("\n")
         prev_p = None
         for line in lines:
-            is_heading = bool(line) and not line.startswith("  ")
-            new_p = _make_p(line, bold=is_heading)
+            is_employer_heading = bool(line) and not line.startswith("  ") and not line == ""
+            is_small = line.startswith("  ")  # project names and bullets
+            new_p = _make_p(line, bold=is_employer_heading, small=is_small)
             if prev_p is None:
                 tf_elem.append(new_p)
             else:
