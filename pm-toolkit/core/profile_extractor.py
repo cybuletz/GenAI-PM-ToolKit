@@ -48,12 +48,62 @@ REQUIRED JSON SCHEMA:
 }"""
 
 
+def _iter_docx_paragraphs(doc):
+    """
+    Yield all paragraph texts from a DOCX document, including paragraphs
+    nested inside tables (which doc.paragraphs silently skips).
+    Traversal order: top-level body elements in document order, so table
+    rows appear in the same relative position as they do visually.
+    """
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+    from docx.table import Table, _Cell
+
+    def iter_block_items(parent):
+        """
+        Recursively yield (paragraph_text, context_hint) tuples from any
+        block-level parent: Document body, table cell, or nested table cell.
+        context_hint is a short label injected before cell content so the AI
+        can correlate employer names (left column) with descriptions (right column).
+        """
+        # Determine the underlying XML element
+        if hasattr(parent, 'element'):
+            parent_elem = parent.element.body
+        elif hasattr(parent, '_tc'):
+            parent_elem = parent._tc
+        else:
+            parent_elem = parent
+
+        for child in parent_elem.iterchildren():
+            tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            if tag == 'p':
+                para = Paragraph(child, parent)
+                text = para.text.strip()
+                if text:
+                    yield text
+            elif tag == 'tbl':
+                tbl = Table(child, parent)
+                for row in tbl.rows:
+                    row_texts = []
+                    for cell in row.cells:
+                        cell_text = ' | '.join(
+                            t for t in (p.text.strip() for p in cell.paragraphs) if t
+                        )
+                        if cell_text:
+                            row_texts.append(cell_text)
+                    if row_texts:
+                        yield ' || '.join(row_texts)
+
+    yield from iter_block_items(doc)
+
+
 def _extract_text_from_file(file_path: Path) -> str:
     suffix = file_path.suffix.lower()
     if suffix == ".docx":
         from docx import Document
         doc = Document(str(file_path))
-        return "\n".join(p.text for p in doc.paragraphs)
+        lines = list(_iter_docx_paragraphs(doc))
+        return "\n".join(lines)
     elif suffix == ".pdf":
         import fitz
         doc = fitz.open(str(file_path))
