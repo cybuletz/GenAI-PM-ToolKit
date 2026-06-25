@@ -1,0 +1,43 @@
+Virgil Galan
+Technical Director | Digital Transformation | Cloud & Agile Delivery
+
+PROFILE
+Virgil Galan is a technical director with over 15 years of experience in software engineering and programme delivery. He has led large-scale digital transformation initiatives across financial services, hospitality, and retail sectors. Expertise spans cloud architecture, agile at scale, and cross-functional team leadership.
+
+COMPETENCIES
+Agile Delivery | Cloud Architecture | Stakeholder Management | Budget Control | Risk Management | Team Leadership | Digital Transformation | DevOps
+
+EDUCATION
+MSc Computer Science – Polytechnic University of Bucharest, 2005
+
+CERTIFICATIONS
+PMP | AWS Solutions Architect Associate | PRINCE2 Practitioner
+
+METHODOLOGIES
+Scrum | Kanban | SAFe | PRINCE2 | Lean
+
+TECHNOLOGIES
+AWS | Azure | GCP | Kubernetes | Terraform | Ansible | Docker | Jenkins | GitLab CI | Jira | Confluence | Salesforce | Python | Java | Node.js
+
+EXPERIENCE
+
+Cognizant Softvision | Technical Director | Jan 2018 – Present
+- Led a 60-person delivery organisation across Romania, India, and the US.
+- Managed annual programme budget of $8M.
+
+  Hospitality – Hotel Booking Platform | 2022–2025
+  - Architected microservices migration from monolithic legacy system.
+  - Reduced deployment lead time by 60% via CI/CD pipeline automation.
+  - Delivered MVP on schedule within 9 months.
+
+  Retail – E-Commerce Replatforming | 2020–2022
+  - Led technical discovery and solution design for a £12M replatforming programme.
+  - Onboarded and mentored a 25-person engineering team.
+
+Accenture | Senior Manager | Mar 2014 – Dec 2017
+- Directed delivery of core banking modernisation programmes across 3 European markets.
+- Introduced SAFe methodology reducing time-to-market by 35%.
+
+  Core Banking Modernisation | 2015–2017
+  - Delivered phased migration of 4 legacy banking systems to cloud-native architecture.
+  - Coordinated work across 8 vendor teams and 120 stakeholders.

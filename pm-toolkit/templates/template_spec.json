@@ -1,0 +1,22 @@
+{
+  "template_version": "1.0",
+  "slide_index": 0,
+  "placeholders": [
+    {"token": "{{ROLE_TITLE}}", "field": "role_title", "max_chars": 120, "overflow": "trim_end"},
+    {"token": "{{NAME}}", "field": "name", "max_chars": 60, "overflow": "trim_end"},
+    {"token": "{{ROLE_SUBTITLE}}", "field": "role_subtitle", "max_chars": 80, "overflow": "trim_end"},
+    {"token": "{{COMP_1}}", "field": "competencies[0]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_2}}", "field": "competencies[1]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_3}}", "field": "competencies[2]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_4}}", "field": "competencies[3]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_5}}", "field": "competencies[4]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_6}}", "field": "competencies[5]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_7}}", "field": "competencies[6]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{COMP_8}}", "field": "competencies[7]", "max_chars": 45, "overflow": "trim_end"},
+    {"token": "{{PROFILE}}", "field": "profile", "max_chars": 600, "overflow": "trim_sentence"},
+    {"token": "{{KEY_PROJECTS}}", "field": "key_projects_block", "max_chars": 4000, "overflow": "trim_projects"},
+    {"token": "{{EDUCATION}}", "field": "education_inline", "max_chars": 200, "overflow": "trim_end"},
+    {"token": "{{METHODOLOGIES}}", "field": "methodologies_inline", "max_chars": 200, "overflow": "trim_end"},
+    {"token": "{{TECHNOLOGIES}}", "field": "technologies_inline", "max_chars": 200, "overflow": "trim_end"}
+  ]
+}

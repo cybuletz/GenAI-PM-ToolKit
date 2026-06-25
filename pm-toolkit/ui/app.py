@@ -2,6 +2,7 @@ import customtkinter as ctk
 from ui.survey_panel import SurveyPanel
 from ui.metrics_panel import MetricsPanel
 from ui.stakeholder_panel import StakeholderPanel
+from ui.profile_panel import ProfilePanel
 from ui.settings_bar import SettingsBar
 
 
@@ -45,6 +46,7 @@ class PMToolkitApp(ctk.CTk):
         self.panels["survey"] = SurveyPanel(self.content_frame, settings=self.settings)
         self.panels["metrics"] = MetricsPanel(self.content_frame, settings=self.settings)
         self.panels["stakeholder"] = StakeholderPanel(self.content_frame, settings=self.settings)
+        self.panels["profile"] = ProfilePanel(self.content_frame, settings=self.settings)
 
         self._show_panel("survey")
 
@@ -59,6 +61,7 @@ class PMToolkitApp(ctk.CTk):
             ("📋  Survey", "survey"),
             ("📊  Metrics", "metrics"),
             ("📢  Stakeholder", "stakeholder"),
+            ("👤  Profile", "profile"),
         ]
         self.nav_buttons = {}
         for i, (label, key) in enumerate(nav_items, start=1):

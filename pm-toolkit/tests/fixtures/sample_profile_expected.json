@@ -1,0 +1,85 @@
+{
+  "name": "Virgil Galan",
+  "role_title": "Technical Director | Digital Transformation | Cloud & Agile Delivery",
+  "role_subtitle": "Technical Director",
+  "profile": "Virgil Galan is a technical director with over 15 years of experience in software engineering and programme delivery. Led large-scale digital transformation initiatives across financial services, hospitality, and retail sectors. Expertise spans cloud architecture, agile at scale, and cross-functional team leadership.",
+  "competencies": [
+    "Agile Delivery",
+    "Cloud Architecture",
+    "Stakeholder Management",
+    "Budget Control",
+    "Risk Management",
+    "Team Leadership",
+    "Digital Transformation",
+    "DevOps"
+  ],
+  "education": [
+    "MSc Computer Science – Polytechnic University of Bucharest, 2005"
+  ],
+  "certifications": [
+    "PMP",
+    "AWS Solutions Architect Associate",
+    "PRINCE2 Practitioner"
+  ],
+  "methodologies": [
+    "Scrum",
+    "Kanban",
+    "SAFe",
+    "PRINCE2",
+    "Lean"
+  ],
+  "technologies": [
+    "AWS", "Azure", "GCP", "Kubernetes", "Terraform",
+    "Ansible", "Docker", "Jenkins", "GitLab CI",
+    "Jira", "Confluence", "Salesforce", "Python", "Java", "Node.js"
+  ],
+  "experience": [
+    {
+      "employer": "Cognizant Softvision",
+      "role": "Technical Director",
+      "date_range": "Jan 2018 – Present",
+      "employer_bullets": [
+        "Led a 60-person delivery organisation across Romania, India, and the US.",
+        "Managed annual programme budget of $8M."
+      ],
+      "projects": [
+        {
+          "project_name": "Hospitality – Hotel Booking Platform",
+          "date_range": "2022–2025",
+          "bullets": [
+            "Architected microservices migration from monolithic legacy system.",
+            "Reduced deployment lead time by 60% via CI/CD pipeline automation.",
+            "Delivered MVP on schedule within 9 months."
+          ]
+        },
+        {
+          "project_name": "Retail – E-Commerce Replatforming",
+          "date_range": "2020–2022",
+          "bullets": [
+            "Led technical discovery and solution design for a £12M replatforming programme.",
+            "Onboarded and mentored a 25-person engineering team."
+          ]
+        }
+      ]
+    },
+    {
+      "employer": "Accenture",
+      "role": "Senior Manager",
+      "date_range": "Mar 2014 – Dec 2017",
+      "employer_bullets": [
+        "Directed delivery of core banking modernisation programmes across 3 European markets.",
+        "Introduced SAFe methodology reducing time-to-market by 35%."
+      ],
+      "projects": [
+        {
+          "project_name": "Core Banking Modernisation",
+          "date_range": "2015–2017",
+          "bullets": [
+            "Delivered phased migration of 4 legacy banking systems to cloud-native architecture.",
+            "Coordinated work across 8 vendor teams and 120 stakeholders."
+          ]
+        }
+      ]
+    }
+  ]
+}
