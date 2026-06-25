@@ -24,10 +24,11 @@ RULES:
   * methodologies: max 6 items
   * education: max 3 items
   * certifications: max 3 items
-  * experience: max 5 employer entries
+  * experience: max 5 employer entries (most recent first)
   * employer_bullets: max 2 per employer
-  * projects per employer: max 4
-  * bullets per project: max 3 (pick the most impactful only)
+  * projects per employer: max 3
+  * bullets per project: max 2 (the single most impactful achievement only)
+  * role_subtitle: short role label only, max 5 words, e.g. 'Senior Java Developer'
 
 REQUIRED JSON SCHEMA:
 {
@@ -65,26 +66,15 @@ def _cell_text(cell) -> str:
 
 
 def _extract_docx_text(file_path: Path) -> str:
-    """
-    Walk a DOCX document emitting text in document order.
-    Handles the common CV table pattern where:
-      - Column 0 is empty (decorative)
-      - Column 1 holds employer name / date (merged across 3 rows)
-      - Column 2 holds the full job description (merged across all 3 rows)
-    Deduplicates merged cells by tracking their underlying _tc XML element id.
-    """
     from docx import Document
-    from docx.oxml.ns import qn
     from docx.text.paragraph import Paragraph
     from docx.table import Table
 
     doc = Document(str(file_path))
     output_lines = []
-
-    # Track which _tc elements have already been emitted globally
     emitted_tc_ids: set = set()
 
-    def emit_cell(cell) -> str | None:
+    def emit_cell(cell):
         tc_id = id(cell._tc)
         if tc_id in emitted_tc_ids:
             return None
@@ -94,13 +84,11 @@ def _extract_docx_text(file_path: Path) -> str:
     body = doc.element.body
     for child in body.iterchildren():
         tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
-
         if tag == 'p':
             para = Paragraph(child, doc)
             text = para.text.strip()
             if text:
                 output_lines.append(text)
-
         elif tag == 'tbl':
             tbl = Table(child, doc)
             for row in tbl.rows:
@@ -110,8 +98,6 @@ def _extract_docx_text(file_path: Path) -> str:
                     if text:
                         row_parts.append(text)
                 if row_parts:
-                    # If only one part, emit as plain line
-                    # If multiple, join with separator so AI can parse columns
                     output_lines.append(' || '.join(row_parts))
 
     return "\n".join(output_lines)

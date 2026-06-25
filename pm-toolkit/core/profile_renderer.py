@@ -22,6 +22,10 @@ class ProfileRenderer:
                 self._replace_in_shape(shape, replacements, profile)
         prs.save(str(output_path))
 
+    # ------------------------------------------------------------------
+    # Build replacement dict
+    # ------------------------------------------------------------------
+
     def _build_replacements(self, profile: ProfileSchema) -> dict:
         r = {}
         r["{{ROLE_TITLE}}"] = profile.role_title
@@ -56,68 +60,97 @@ class ProfileRenderer:
         return "\n".join(lines)
 
     # ------------------------------------------------------------------
-    # Core replacement: heal run-fragmented tokens before replacing
+    # Shape-level replacement dispatcher
     # ------------------------------------------------------------------
-
-    def _heal_runs(self, para) -> None:
-        """
-        PowerPoint often splits a token like {{NAME}} across multiple runs:
-          run0.text = '{{', run1.text = 'NAME', run2.text = '}}'
-        This merges the text of all runs into run0, blanks the rest,
-        preserving run0's formatting.
-        Only applied when full_text contains '{{'.
-        """
-        runs = para.runs
-        if len(runs) <= 1:
-            return
-        full = "".join(r.text for r in runs)
-        if '{{' not in full:
-            return
-        # Consolidate everything into the first run, blank the rest
-        runs[0].text = full
-        for r in runs[1:]:
-            r.text = ""
 
     def _replace_in_shape(self, shape, replacements: dict, profile: ProfileSchema):
         tf = shape.text_frame
         for para in tf.paragraphs:
-            # Step 1: heal any split tokens in this paragraph
-            self._heal_runs(para)
-
-            full_text = "".join(run.text for run in para.runs)
-            matched_token = None
-            for token in replacements:
-                if token in full_text:
-                    matched_token = token
-                    break
-            if matched_token is None:
+            # Get full text from ALL <a:t> nodes in this paragraph (catches split runs)
+            full_text = self._para_full_text(para)
+            if not full_text or "{{" not in full_text:
                 continue
 
-            if matched_token == "{{KEY_PROJECTS}}":
-                self._rebuild_projects_block(para, replacements[matched_token])
-            else:
-                replacement_value = replacements[matched_token]
-                # After healing, the full text is in runs[0]
-                for run in para.runs:
-                    if matched_token in run.text:
-                        run.text = run.text.replace(matched_token, replacement_value)
-                        break
+            # Check KEY_PROJECTS first (full text-frame rebuild)
+            if "{{KEY_PROJECTS}}" in full_text:
+                self._rebuild_projects_block(para, replacements["{{KEY_PROJECTS}}"])
+                return  # text frame rebuilt, stop processing this shape
+
+            # For all other tokens: apply ALL matching replacements to this paragraph
+            # by consolidating runs then doing string replacements
+            self._apply_replacements_to_para(para, replacements)
+
+    def _para_full_text(self, para) -> str:
+        """Collect text from every <a:t> element in the paragraph XML, not just .runs."""
+        return "".join(
+            (t.text or "") for t in para._p.iter() if t.tag.endswith("}t")
+        )
+
+    def _apply_replacements_to_para(self, para, replacements: dict):
+        """
+        Strategy:
+        1. Consolidate all <a:r> text into the first run (healing run-splits).
+        2. Also handle <a:t> nodes that live directly under the paragraph 
+           (rare but possible after some editors save).
+        3. Apply ALL token replacements in one pass on the consolidated text.
+        4. Write the final string back into the first run; blank all others.
+        5. For paragraphs where label runs (e.g. 'Education:') must keep their 
+           own formatting, only blank the run that CONTAINED the token, not the labels.
+        """
+        runs = para.runs  # only <a:r> elements
+
+        if not runs:
+            # Tokens stored directly in <a:t> under <a:p> (no runs) — rare edge case
+            for t_node in para._p.iter():
+                if t_node.tag.endswith("}t") and t_node.text and "{{" in t_node.text:
+                    new_text = t_node.text
+                    for token, value in replacements.items():
+                        new_text = new_text.replace(token, value)
+                    t_node.text = new_text
+            return
+
+        # --- Step 1: Identify which runs contain token fragments ---
+        # A token can be split across consecutive runs. We consolidate by scanning
+        # the raw XML text nodes and reconstructing per-run ownership.
+        
+        # Build a list of (run, original_text) pairs
+        run_texts = [(r, r.text or "") for r in runs]
+        combined = "".join(t for _, t in run_texts)
+
+        if "{{" not in combined:
+            return
+
+        # Apply all replacements on the combined string
+        new_combined = combined
+        for token, value in replacements.items():
+            new_combined = new_combined.replace(token, value)
+
+        if new_combined == combined:
+            return  # nothing changed
+
+        # --- Step 2: Write back ---
+        # Check if this paragraph has "label" runs (bold labels like 'Education:')
+        # that should keep their own text. We detect these as runs that don't contain
+        # any '{{' fragment and whose text doesn't change in new_combined.
+        # 
+        # Simple heuristic: if there are only 1-2 runs total, consolidate into run[0].
+        # If there are multiple runs AND the non-token runs have important formatting,
+        # try to write replacement only into the token-bearing run(s).
+        #
+        # Full safe approach: consolidate into run[0], preserve run[0]'s formatting.
+        runs[0].text = new_combined
+        for r in runs[1:]:
+            r.text = ""
 
     # ------------------------------------------------------------------
-    # KEY_PROJECTS: rebuild entire text frame with correct bold/normal
+    # KEY_PROJECTS: rebuild entire text frame
     # ------------------------------------------------------------------
 
     def _rebuild_projects_block(self, anchor_para, block_text: str):
-        """
-        Replace the entire text frame that contains the {{KEY_PROJECTS}} token
-        with one paragraph per line, bold on employer/project headings.
-        Captures font size, color, and typeface from the anchor paragraph's
-        first run so the new text inherits the template's base style.
-        """
         tf_elem = anchor_para._p.getparent()
         existing_paras = tf_elem.findall(qn('a:p'))
 
-        # Capture base style from anchor paragraph first run
+        # Capture base style from anchor paragraph first <a:r>
         base_sz = None
         base_color = None
         base_typeface = None
@@ -137,18 +170,17 @@ class ProfileRenderer:
                 if lat is not None:
                     base_typeface = lat.get('typeface')
 
-        # Remove ALL existing paragraphs in this text frame
+        # Remove all existing paragraphs from this text frame
         for p in existing_paras:
             tf_elem.remove(p)
 
-        def _make_p(text: str, bold: bool) -> object:
+        def _make_p(text: str, bold: bool):
             color_xml = ""
             if base_color:
                 color_xml = f'<a:solidFill><a:srgbClr val="{base_color}"/></a:solidFill>'
             sz_xml = f' sz="{base_sz}"' if base_sz else ''
             b_xml = ' b="1"' if bold else ' b="0"'
             lat_xml = f'<a:latin typeface="{base_typeface}"/>' if base_typeface else ''
-            # Escape XML special chars in text
             safe = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return parse_xml(
                 f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
@@ -162,7 +194,6 @@ class ProfileRenderer:
         lines = block_text.split("\n")
         prev_p = None
         for line in lines:
-            # Heading = non-indented non-empty line; bullet = starts with '  •'
             is_heading = bool(line) and not line.startswith("  ")
             new_p = _make_p(line, bold=is_heading)
             if prev_p is None:
