@@ -19,47 +19,48 @@ GENERAL RULES:
 - Return ONLY the JSON object. No explanation, no markdown fences, no extra text.
 
 FRAME BUDGET - READ THIS CAREFULLY:
-The KEY PROJECTS section has space for approximately 36 lines of 8pt Arial text.
-Structure overhead (employer headings, project name lines, blank separators) uses ~18 lines.
-This leaves ~18 lines of actual content to fill across all projects.
-Target content density per project: 2-3 wrapped lines of 8pt text = 250-400 characters.
-IMPORTANT: Write as much as the source supports. Do NOT write short. If the source has rich detail, your content fields should be close to 350-400 characters each. Only write less if the source truly has little information.
+The KEY PROJECTS section uses Arial 8pt font and has space for approximately 36 lines.
+Structure overhead (employer headings, project name lines, blank separators) uses ~12 lines.
+This leaves ~24 lines of content across all 6 projects = ~4 lines per project.
+At Arial 8pt with ~170 chars/line, each project content can hold up to 600-680 characters.
+IMPORTANT: Write as much as the source supports. Target 500-650 characters per project when source is rich.
+Only write less when the source truly has little information for that project.
 
 CONTENT FORMAT - ADAPTIVE AND MIXED:
-Each project has a "content" field. Based on the source richness, use the best format:
+Each project has a "content" field. Based on source richness, choose the best format:
 
 FORMAT A - FLOWING PARAGRAPH (preferred when source has rich detail):
-  2-3 sentences combining achievements, technologies used, team context, and business impact.
-  Written in third-person past tense. No bullet markers. Target 300-400 characters.
-  Example: "Led a team of 6 developers in building a master data management platform for a major investment bank, handling firm-wide reference data distribution. Migrated the application from on-premises infrastructure to GCP using Terraform and Docker, replacing the RabbitMQ messaging layer with Google Pub/Sub and securing all APIs with OAuth 2.0 and JWT tokens."
+  3-4 sentences combining achievements, technologies used, team context, and business impact.
+  Written in third-person past tense. No bullet markers. Target 500-650 characters.
+  Example: "Led a team of 6 developers in building a master data management platform for a major investment bank, centralising firm-wide reference data distribution across 12 downstream systems. Migrated the application from on-premises infrastructure to GCP using Terraform and Docker, replacing the RabbitMQ messaging layer with Google Pub/Sub. Secured all service-to-service APIs with OAuth 2.0 and JWT tokens, and introduced automated integration testing with JUnit and Mockito reducing regression time by 40%."
 
-FORMAT B - BULLET LINES (use when facts are distinct and don't flow as prose, or to supplement):
-  2-4 lines each starting with \u2022 (bullet) and a space, separated by \n.
-  Each line starts with a past-tense verb. Each line 80-120 characters.
-  Example: "\u2022 Designed and implemented REST API layer using Spring Boot and Oracle Database with CI/CD on Jenkins.\n\u2022 Led code reviews and architectural decisions for a team of 4, reducing defect rate by 30%."
+FORMAT B - BULLET LINES (use when facts are distinct and don't flow well as prose):
+  3-5 lines each starting with \u2022 (bullet) and a space, separated by \n.
+  Each line starts with a past-tense verb. Each line 100-140 characters.
+  Example: "\u2022 Designed and implemented REST API layer using Spring Boot and Oracle Database with full CI/CD pipeline on Jenkins.\n\u2022 Led architectural reviews and code quality sessions for a team of 4, reducing critical defects by 30%.\n\u2022 Integrated SonarQube static analysis and automated unit test coverage reporting."
 
-FORMAT C - MIXED (use when you have both a strong summary and additional distinct facts):
-  Start with 1-2 sentences of paragraph prose, then add 1-2 bullet lines for extra facts.
-  Separate the paragraph from bullets with \n.
-  Example: "Developed a workflow management tool for task tracking using Spring Boot, REST APIs, and Oracle DB.\n\u2022 Deployed using Kubernetes clusters with CI/CD pipelines in Jenkins and SonarQube.\n\u2022 Led backend, frontend, and QA coordination across 3 teams."
+FORMAT C - MIXED (use when you have a strong narrative AND additional distinct facts worth preserving):
+  Start with 2 sentences of paragraph prose, then add 2-3 bullet lines separated by \n.
+  Example: "Developed a workflow management tool for task tracking and process automation across 3 business units, built on Spring Boot with REST APIs and Oracle DB.\n\u2022 Deployed to Kubernetes clusters with Jenkins and SonarQube CI/CD pipelines.\n\u2022 Led cross-team coordination between backend, frontend, and QA.\n\u2022 Delivered 2 major releases within budget, reducing manual processing time by 25%."
 
-Choose the format that best uses available source material. Maximize content length within the 400 character limit.
+Choose the format that best uses available source material. Maximize content within the 650 character limit.
+Do NOT write short summaries when more detail exists in the source.
 
 EXPERIENCE PRIORITY STRATEGY:
-1. MOST RECENT EMPLOYER: up to 4 named projects (or theme-grouped if no explicit names), each with full content.
-2. SECOND MOST RECENT EMPLOYER: up to 2 projects, each with content.
+1. MOST RECENT EMPLOYER: up to 4 named projects, each with full content (aim for 500-650 chars each).
+2. SECOND MOST RECENT EMPLOYER: up to 2 projects, each with content (aim for 400-550 chars each).
 3. ALL REMAINING EMPLOYERS: one aggregated entry:
    - employer: "Previous Experience"
    - role: one-line summary (e.g. "Senior Developer, Tech Lead - multiple clients")
    - date_range: earliest to latest year
-   - employer_bullets: 2-3 synthesized lines in same adaptive format
+   - employer_bullets: 2-3 synthesized lines (use adaptive format)
    - projects: empty list
 
 PROJECT NAMING:
 - Use explicit project names from source when available.
 - If no explicit names, group activities into 2-4 meaningful named themes.
 - Every non-aggregated employer must have at least 2 projects.
-- Never leave projects empty if achievements or activities are present.
+- Never leave content empty if achievements or activities are present in the source.
 
 STRICT LIMITS:
   * competencies: max 8
@@ -71,7 +72,7 @@ STRICT LIMITS:
   * employer_bullets: max 2 for top 2 entries; max 3 for aggregated
   * projects entry 1: max 4
   * projects entry 2: max 2
-  * content per project: max 400 characters
+  * content per project: max 650 characters
   * role_subtitle: max 5 words
 
 REQUIRED JSON SCHEMA:

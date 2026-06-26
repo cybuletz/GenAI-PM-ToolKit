@@ -2,11 +2,14 @@ from core.profile_schema import ProfileSchema
 
 GENERIC_PHRASES = {"responsible for", "worked on", "involved in"}
 
-# Trimmer enforces hard ceilings AFTER AI extraction.
-# AI is instructed to write 300-400 chars per project; trimmer clips at 420 as safety net.
+# Measured capacity: 4386 chars at Arial 10pt fills the frame.
+# At Arial 8pt (scaled 10/8): ~5482 chars available.
+# 6 projects across 2 employers, structure overhead ~12 lines.
+# Per-project content budget: ~680 chars at 8pt.
+# Trimmer ceilings are set slightly above AI targets as safety net only.
 MAX_PROJECTS         = [4, 2, 0]
 MAX_EMPLOYER_BULLETS = [2, 2, 3]
-MAX_CONTENT_CHARS    = [420, 320, 0]
+MAX_CONTENT_CHARS    = [680, 560, 0]   # entry 1: 4 lines, entry 2: ~3 lines
 MAX_BULLET_CHARS     = 200
 
 
