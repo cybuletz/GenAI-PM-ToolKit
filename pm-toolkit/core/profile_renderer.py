@@ -6,10 +6,10 @@ from pptx.oxml.ns import qn
 from pptx.oxml import parse_xml
 from core.profile_schema import ProfileSchema
 
-# Frame metrics measured from base_profile_template.pptx (KEY_PROJECTS text frame)
+# Frame metrics measured from base_profile_template.pptx
 _FRAME_HEIGHT_EMU = 4212238
 _FRAME_WIDTH_EMU  = 8884366
-_LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)    # 8pt + 15% spacing = 116839 EMU
+_LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)    # 8pt + 15% spacing
 _FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
 _CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line at 8pt
 
@@ -54,10 +54,27 @@ class ProfileRenderer:
         return r
 
     def _estimate_lines(self, text: str, bold: bool = False) -> int:
+        """Estimate wrapped line count for a string in the frame."""
         if not text:
             return 1
+        # Bullet-format content: each \n-separated line wraps independently
+        if '\n' in text:
+            total = 0
+            for segment in text.split('\n'):
+                total += self._estimate_lines(segment.strip(), bold)
+            return max(total, 1)
         cpl = int(_CHARS_PER_LINE * 0.82) if bold else _CHARS_PER_LINE
         return max(1, math.ceil(len(text) / cpl))
+
+    def _content_to_line_specs(self, content: str, sz: int) -> list:
+        """
+        Convert a content string to (text, bold, sz) tuples.
+        If content uses bullet format (lines separated by \n), emit each line separately.
+        Otherwise emit as a single wrapped paragraph.
+        """
+        if '\n' in content:
+            return [(line.strip(), False, sz) for line in content.split('\n') if line.strip()]
+        return [(content, False, sz)]
 
     def _build_projects_block(self, experience: list) -> list:
         lines = []
@@ -81,20 +98,24 @@ class ProfileRenderer:
             if exp.projects:
                 for proj in exp.projects:
                     content = getattr(proj, 'content', '') or ''
-                    block_cost = 1 + self._estimate_lines(content)
+                    content_specs = self._content_to_line_specs(content, 800)
+                    content_cost = sum(self._estimate_lines(t) for t, _, _ in content_specs)
+                    block_cost = 1 + content_cost  # project name + content
+
                     if used + block_cost > capacity:
                         break
+
                     lines.append((proj.project_name, True, 800))
                     used += 1
-                    if content:
-                        lines.append((content, False, 800))
-                        used += self._estimate_lines(content)
+                    lines.extend(content_specs)
+                    used += content_cost
             else:
                 for b in exp.employer_bullets:
-                    b_cost = self._estimate_lines(b)
+                    b_specs = self._content_to_line_specs(b, 800)
+                    b_cost = sum(self._estimate_lines(t) for t, _, _ in b_specs)
                     if used + b_cost > capacity:
                         break
-                    lines.append((f" {b}", False, 800))
+                    lines.extend(b_specs)
                     used += b_cost
 
         return lines
