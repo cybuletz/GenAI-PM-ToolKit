@@ -2,24 +2,17 @@ from core.profile_schema import ProfileSchema
 
 GENERIC_PHRASES = {"responsible for", "worked on", "involved in"}
 
-# Frame capacity: 30 lines at 8pt/115% spacing in a 3566794 EMU tall text frame.
-# Employer headings are ~10pt so cost slightly more. Budget conservatively at 28 usable lines.
-# Layout cost:
-#   Entry 0 (most recent): heading(1) + 4 projects * (name(1) + content wraps ~2 lines) = 1 + 4*3 = 13
-#   Entry 1 (second):      blank(1) + heading(1) + 2 projects * 3 = 8
-#   Entry 2 (aggregated):  blank(1) + heading(1) + 2 bullets = 4
-#   Total: 13 + 8 + 4 = 25  (comfortable fit with room for longer content wraps)
-
-MAX_PROJECTS = [4, 2, 0]
+# Frame: 36 lines capacity. Layout uses ~25 lines leaving 11 buffer for content wrapping.
+# Content char limits set to use that space well without overflowing.
+MAX_PROJECTS       = [4, 2, 0]
 MAX_EMPLOYER_BULLETS = [2, 2, 2]
-MAX_CONTENT_CHARS = [280, 220, 0]  # project content per entry tier
-MAX_BULLET_CHARS = 160
+MAX_CONTENT_CHARS  = [320, 250, 0]   # project paragraph per tier
+MAX_BULLET_CHARS   = 180             # employer_bullets
 
 
 def _trim_end(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
-    # Cut at last sentence boundary within limit
     truncated = text[:max_chars]
     last_period = truncated.rfind('.')
     return truncated[:last_period + 1].strip() if last_period > 0 else truncated.rstrip()
@@ -56,8 +49,8 @@ class ProfileTrimmer:
         trimmed_exp = []
         for idx, entry in enumerate(data["experience"][:3]):
             max_proj = MAX_PROJECTS[idx]
-            max_eb = MAX_EMPLOYER_BULLETS[idx]
-            max_cc = MAX_CONTENT_CHARS[idx]
+            max_eb   = MAX_EMPLOYER_BULLETS[idx]
+            max_cc   = MAX_CONTENT_CHARS[idx]
 
             eb = [b for b in entry["employer_bullets"] if not _is_generic(b)]
             entry["employer_bullets"] = [_trim_end(b, MAX_BULLET_CHARS) for b in eb[:max_eb]]

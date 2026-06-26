@@ -1,19 +1,17 @@
 import json
+import math
 from pathlib import Path
 from pptx import Presentation
 from pptx.oxml.ns import qn
 from pptx.oxml import parse_xml
 from core.profile_schema import ProfileSchema
 
-# Frame metrics (measured from base_profile_template.pptx)
-_FRAME_HEIGHT_EMU = 3566794
-_LINE_HEIGHT_EMU = int(8 * 12700 * 1.15)   # 8pt + 15% spacing = ~116840 EMU
-_HEADING_HEIGHT_EMU = int(10 * 12700 * 1.2) # employer heading ~10pt + 20%
-_FRAME_CAPACITY = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # ~30 lines
-
-# Characters per line at 8pt in an 8884366 EMU wide frame (measured)
-# At ~6.5px/char and 96dpi, frame width ~935px / ~7px per char at 8pt = ~130 chars/line
-_CHARS_PER_LINE = 130
+# Frame metrics measured from base_profile_template.pptx (KEY_PROJECTS text frame)
+_FRAME_HEIGHT_EMU = 4212238
+_FRAME_WIDTH_EMU  = 8884366
+_LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)    # 8pt + 15% spacing = 116839 EMU
+_FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
+_CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line at 8pt
 
 
 class ProfileRenderer:
@@ -55,29 +53,21 @@ class ProfileRenderer:
         r["{{TECHNOLOGIES}}"] = ", ".join(profile.technologies)
         return r
 
-    def _estimate_line_count(self, text: str, bold: bool) -> int:
-        """Estimate how many lines a text string will occupy in the frame."""
+    def _estimate_lines(self, text: str, bold: bool = False) -> int:
         if not text:
             return 1
-        chars_per_line = int(_CHARS_PER_LINE * 0.85) if bold else _CHARS_PER_LINE
-        import math
-        return max(1, math.ceil(len(text) / chars_per_line))
+        cpl = int(_CHARS_PER_LINE * 0.82) if bold else _CHARS_PER_LINE
+        return max(1, math.ceil(len(text) / cpl))
 
     def _build_projects_block(self, experience: list) -> list:
-        """
-        Returns list of (text, bold, sz_or_None) tuples, budget-capped to frame capacity.
-        Each project's content is a paragraph string that wraps naturally.
-        """
-        lines = []  # (text, bold, sz)
+        lines = []
         used = 0
-        capacity = _FRAME_CAPACITY - 1  # leave 1 line buffer
+        capacity = _FRAME_CAPACITY - 1  # 1-line safety buffer
 
         for i, exp in enumerate(experience):
-            # Blank separator
             sep_cost = 0 if i == 0 else 1
-            # Employer heading
             heading = f"{exp.employer} \u2013 {exp.role} / {exp.date_range}"
-            heading_cost = self._estimate_line_count(heading, bold=True)
+            heading_cost = self._estimate_lines(heading, bold=True)
 
             if used + sep_cost + heading_cost > capacity:
                 break
@@ -90,22 +80,18 @@ class ProfileRenderer:
 
             if exp.projects:
                 for proj in exp.projects:
-                    proj_name_cost = 1
                     content = getattr(proj, 'content', '') or ''
-                    content_cost = self._estimate_line_count(content, bold=False)
-                    block_cost = proj_name_cost + content_cost
-
+                    block_cost = 1 + self._estimate_lines(content)
                     if used + block_cost > capacity:
                         break
-
                     lines.append((proj.project_name, True, 800))
                     used += 1
                     if content:
                         lines.append((content, False, 800))
-                        used += content_cost
+                        used += self._estimate_lines(content)
             else:
                 for b in exp.employer_bullets:
-                    b_cost = self._estimate_line_count(b, bold=False)
+                    b_cost = self._estimate_lines(b)
                     if used + b_cost > capacity:
                         break
                     lines.append((f" {b}", False, 800))
