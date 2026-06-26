@@ -3,31 +3,41 @@ import re
 from pathlib import Path
 from core.profile_schema import ProfileSchema
 
-SYSTEM_PROMPT = """You are a professional profile extraction assistant. Extract structured information from the provided consultant profile source text and return it as a single valid JSON object matching the schema below.
+SYSTEM_PROMPT = """You are a professional profile extraction assistant. Extract structured information from the provided consultant profile source text and return a single valid JSON object.
 
-RULES:
-- Extract ONLY facts explicitly stated in the source text.
+YOUR CORE JOB:
+Read and understand the full source text. Synthesize, prioritize, and rewrite content into clear, impactful consultant-style bullets and paragraphs. You are not a copy-paste tool — you are an intelligent summarizer. The only hard rule: do NOT invent facts not present in the source.
+
+GENERAL RULES:
 - Do NOT use first-person language (no "I", "my", "we").
 - Do NOT use words: passionate, enthusiast, thrive, committed, driven, dedicated, love, enjoy.
 - Do NOT add marketing language or generic filler.
-- Profile field: third-person, factual, consultant-style prose. Max 3 sentences.
-- All bullet points must start with a past-tense action verb.
-- All bullet points must be specific and impactful. Max 130 characters each.
-- Prioritize bullets mentioning: technologies, scale/numbers, business impact, concrete outcomes.
+- Profile field: third-person, factual, consultant-style prose. 3–4 sentences. Synthesize the most impressive facts — scale, industries, technologies, leadership scope.
+- Bullets must start with a past-tense action verb.
+- Bullets must be specific, synthesized, and impactful. Up to 160 characters. Combine related facts into one strong bullet rather than listing weak fragments.
 - Technologies list must be deduplicated and use official product names.
-- Competencies must be short labels, not sentences.
+- Competencies must be short labels (2–4 words), not sentences.
 - If a field has no data, use empty string or empty list.
 - Return ONLY the JSON object. No explanation, no markdown fences, no extra text.
 
-PROJECT EXTRACTION RULES (critical for filling the KEY PROJECTS section):
+EXPERIENCE PRIORITY STRATEGY (critical):
+1. MOST RECENT EMPLOYER: Extract in full detail.
+   - Include up to 4 named projects (or theme-grouped projects if no explicit names).
+   - Each project gets up to 3 bullets — synthesize achievements + responsibilities into rich, specific statements.
+   - If the employer has no explicit project names, group activities into 2–4 meaningful named themes (e.g. "Cloud Infrastructure Migration", "Team Leadership & Delivery").
+2. SECOND MOST RECENT EMPLOYER: Include up to 2 projects, up to 2 bullets each.
+3. ALL REMAINING EMPLOYERS: Aggregate into a single synthetic entry:
+   - employer: "Previous Experience"
+   - role: one-line summary of roles held (e.g. "Senior Developer, Tech Lead — multiple clients")
+   - date_range: earliest start year to end year of the block
+   - employer_bullets: 2–3 bullets that synthesize the most important facts across all remaining employers (technologies, scale, industries, notable achievements)
+   - projects: empty list
+
+PROJECT EXTRACTION RULES:
 - If the source explicitly names projects, use those names.
-- If no explicit project names exist for an employer, group the achievements and activities into
-  2-4 meaningful named projects based on themes (e.g. "Team Onboarding & Governance",
-  "KPI Tracking & Reporting", "Stakeholder & Risk Management", "Infrastructure Migration").
-- Each employer MUST have at least 2 projects (named or theme-grouped).
-- Never leave projects as an empty list if there are achievements or activities in the source.
-- employer_bullets: use only for high-level facts that don't fit any project (e.g. team size, geography).
-  If all content fits into projects, leave employer_bullets empty.
+- If no explicit project names exist, group achievements/activities into named themes.
+- Every employer entry (except the aggregated "Previous Experience") must have at least 2 projects.
+- Never leave projects empty if achievements or activities are present.
 
 STRICT LIMITS:
   * competencies: max 8 items
@@ -35,10 +45,11 @@ STRICT LIMITS:
   * methodologies: max 5 items
   * education: max 2 items
   * certifications: max 3 items
-  * experience: max 5 employer entries (most recent first)
-  * employer_bullets: max 2 per employer
-  * projects per employer: max 4
-  * bullets per project: max 2
+  * experience entries: exactly 3 (most recent, second most recent, aggregated previous)
+  * employer_bullets: max 2 for the top 2 entries; 2–3 for the aggregated entry
+  * projects for entry 1: max 4
+  * projects for entry 2: max 2
+  * bullets per project: max 3 for entry 1; max 2 for entry 2
   * role_subtitle: short role label only, max 5 words
 
 REQUIRED JSON SCHEMA:
@@ -76,6 +87,12 @@ def _cell_text(cell) -> str:
 
 
 def _extract_docx_text(file_path: Path) -> str:
+    """
+    Extract text from a docx preserving table structure.
+    For multi-row spanning tables (common in CV templates where employer is in column 0
+    and projects are in column 1 across many rows), we emit the full cell content
+    of each unique cell exactly once, grouped by row so context is preserved.
+    """
     from docx import Document
     from docx.text.paragraph import Paragraph
     from docx.table import Table
@@ -101,6 +118,7 @@ def _extract_docx_text(file_path: Path) -> str:
                 output_lines.append(text)
         elif tag == 'tbl':
             tbl = Table(child, doc)
+            row_texts = []
             for row in tbl.rows:
                 row_parts = []
                 for cell in row.cells:
@@ -108,7 +126,8 @@ def _extract_docx_text(file_path: Path) -> str:
                     if text:
                         row_parts.append(text)
                 if row_parts:
-                    output_lines.append(' || '.join(row_parts))
+                    row_texts.append(' || '.join(row_parts))
+            output_lines.extend(row_texts)
 
     return "\n".join(output_lines)
 
