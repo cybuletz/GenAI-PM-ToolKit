@@ -4,18 +4,34 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.oxml.ns import qn
 from pptx.oxml import parse_xml
+from lxml import etree
 from core.profile_schema import ProfileSchema
 
 # Frame metrics measured from base_profile_template.pptx
 _FRAME_HEIGHT_EMU = 4212238
 _FRAME_WIDTH_EMU  = 8884366
-_LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)    # 8pt + 15% spacing
+_LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)
 _FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
-_CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line at 8pt Arial
+_CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line
 
-# Font forced to Arial 8pt for all KEY_PROJECTS content
-_CONTENT_FONT     = "Arial"
-_CONTENT_SZ       = 800   # half-points (800 = 8pt)
+# Global font applied to all generated/replaced text
+_FONT             = "Arial"
+_CONTENT_SZ       = 800   # 8pt in half-points
+
+# Tokens that should have Arial applied after replacement
+_FONT_PATCHED_TOKENS = {
+    "{{PROFILE}}",
+    "{{EDUCATION}}",
+    "{{METHODOLOGIES}}",
+    "{{TECHNOLOGIES}}",
+    "{{ROLE_TITLE}}",
+    "{{NAME}}",
+    "{{ROLE_SUBTITLE}}",
+    "{{COMP_1}}", "{{COMP_2}}", "{{COMP_3}}", "{{COMP_4}}",
+    "{{COMP_5}}", "{{COMP_6}}", "{{COMP_7}}", "{{COMP_8}}",
+}
+
+_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 class ProfileRenderer:
@@ -29,20 +45,28 @@ class ProfileRenderer:
         slide = prs.slides[slide_index]
         text_replacements = self._build_text_replacements(profile)
         projects_lines = self._build_projects_block(profile.experience)
+        # Track which shapes had tokens replaced so we can patch fonts
+        patched_shapes = set()
         for shape in slide.shapes:
-            self._process_shape(shape, text_replacements, projects_lines)
+            self._process_shape(shape, text_replacements, projects_lines, patched_shapes)
+        # Apply Arial to all runs in shapes that had token replacements
+        for shape in slide.shapes:
+            if id(shape) in patched_shapes:
+                self._patch_font_in_shape(shape)
         prs.save(str(output_path))
 
-    def _process_shape(self, shape, text_replacements, projects_lines):
+    def _process_shape(self, shape, text_replacements, projects_lines, patched_shapes):
         if shape.shape_type == 6:
             try:
                 for child in shape.shapes:
-                    self._process_shape(child, text_replacements, projects_lines)
+                    self._process_shape(child, text_replacements, projects_lines, patched_shapes)
             except Exception:
                 pass
             return
         if shape.has_text_frame:
-            self._replace_in_shape(shape, text_replacements, projects_lines)
+            replaced = self._replace_in_shape(shape, text_replacements, projects_lines)
+            if replaced:
+                patched_shapes.add(id(shape))
 
     def _build_text_replacements(self, profile: ProfileSchema) -> dict:
         r = {}
@@ -57,6 +81,25 @@ class ProfileRenderer:
         r["{{TECHNOLOGIES}}"] = ", ".join(profile.technologies)
         return r
 
+    def _patch_font_in_shape(self, shape):
+        """Set Arial on every run in the shape's text frame."""
+        if not shape.has_text_frame:
+            return
+        for para in shape.text_frame.paragraphs:
+            for run in para.runs:
+                rPr = run._r.find(qn('a:rPr'))
+                if rPr is None:
+                    rPr = etree.SubElement(run._r, qn('a:rPr'))
+                    run._r.insert(0, rPr)  # rPr must be first child
+                # Remove existing latin/ea/cs font elements
+                for tag in ['a:latin', 'a:ea', 'a:cs']:
+                    existing = rPr.find(qn(tag))
+                    if existing is not None:
+                        rPr.remove(existing)
+                # Insert Arial as latin typeface
+                latin = etree.SubElement(rPr, qn('a:latin'))
+                latin.set('typeface', _FONT)
+
     def _estimate_lines(self, text: str, bold: bool = False) -> int:
         if not text:
             return 1
@@ -66,24 +109,14 @@ class ProfileRenderer:
         return max(1, math.ceil(len(text) / cpl))
 
     def _content_to_line_specs(self, content: str) -> list:
-        """
-        Convert content string to (text, bold, sz) tuples.
-        Handles plain paragraphs, \n-separated bullet lines, and mixed formats.
-        Font is always Arial 8pt for content lines.
-        """
         if not content:
             return []
-        specs = []
-        for segment in content.split('\n'):
-            segment = segment.strip()
-            if segment:
-                specs.append((segment, False, _CONTENT_SZ))
-        return specs
+        return [(seg.strip(), False, _CONTENT_SZ) for seg in content.split('\n') if seg.strip()]
 
     def _build_projects_block(self, experience: list) -> list:
         lines = []
         used = 0
-        capacity = _FRAME_CAPACITY - 1  # 1-line safety buffer = 35
+        capacity = _FRAME_CAPACITY - 1
 
         for i, exp in enumerate(experience):
             sep_cost = 0 if i == 0 else 1
@@ -96,7 +129,7 @@ class ProfileRenderer:
             if i > 0:
                 lines.append(("", False, _CONTENT_SZ))
                 used += 1
-            lines.append((heading, True, None))  # heading inherits template font/size
+            lines.append((heading, True, None))
             used += heading_cost
 
             if exp.projects:
@@ -104,11 +137,9 @@ class ProfileRenderer:
                     content = getattr(proj, 'content', '') or ''
                     content_specs = self._content_to_line_specs(content)
                     content_cost = sum(self._estimate_lines(t) for t, _, _ in content_specs)
-                    block_cost = 1 + content_cost  # project name line + content
-
+                    block_cost = 1 + content_cost
                     if used + block_cost > capacity:
                         break
-
                     lines.append((proj.project_name, True, _CONTENT_SZ))
                     used += 1
                     lines.extend(content_specs)
@@ -124,8 +155,10 @@ class ProfileRenderer:
 
         return lines
 
-    def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list):
+    def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list) -> bool:
+        """Returns True if any replacement was made."""
         tf = shape.text_frame
+        replaced = False
         for para in tf.paragraphs:
             via_xml = "".join(
                 (t.text or "") for t in para._p.iter() if t.tag.endswith("}t")
@@ -134,8 +167,10 @@ class ProfileRenderer:
                 continue
             if "{{KEY_PROJECTS}}" in via_xml:
                 self._rebuild_projects_block(para, projects_lines)
-                return
+                return True
             self._apply_replacements_to_para(para, text_replacements)
+            replaced = True
+        return replaced
 
     def _apply_replacements_to_para(self, para, replacements: dict):
         runs = para.runs
@@ -177,7 +212,6 @@ class ProfileRenderer:
         tf_elem = anchor_para._p.getparent()
         existing_paras = tf_elem.findall(qn('a:p'))
 
-        # Read color from template anchor paragraph
         base_color = None
         ref_runs = anchor_para._p.findall('.//' + qn('a:r'))
         if ref_runs:
@@ -194,17 +228,14 @@ class ProfileRenderer:
 
         def _make_p(text, bold, sz):
             color_xml = f'<a:solidFill><a:srgbClr val="{base_color}"/></a:solidFill>' if base_color else ""
-            # sz=None means heading: inherit from template (no explicit sz attr)
             sz_xml = f' sz="{sz}"' if sz is not None else ''
             b_xml = ' b="1"' if bold else ' b="0"'
-            # Always use Arial for content; headings also get Arial for consistency
             safe = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return parse_xml(
                 f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
                 f'<a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr>'
                 f'<a:r><a:rPr lang="en-US"{sz_xml}{b_xml} dirty="0">'
-                f'{color_xml}'
-                f'<a:latin typeface="Arial"/>'
+                f'{color_xml}<a:latin typeface="Arial"/>'
                 f'</a:rPr>'
                 f'<a:t>{safe}</a:t></a:r></a:p>'
             )
