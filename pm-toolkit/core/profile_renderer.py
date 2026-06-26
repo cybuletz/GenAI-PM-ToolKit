@@ -5,6 +5,16 @@ from pptx.oxml.ns import qn
 from pptx.oxml import parse_xml
 from core.profile_schema import ProfileSchema
 
+# Frame metrics (measured from base_profile_template.pptx)
+_FRAME_HEIGHT_EMU = 3566794
+_LINE_HEIGHT_EMU = int(8 * 12700 * 1.15)   # 8pt + 15% spacing = ~116840 EMU
+_HEADING_HEIGHT_EMU = int(10 * 12700 * 1.2) # employer heading ~10pt + 20%
+_FRAME_CAPACITY = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # ~30 lines
+
+# Characters per line at 8pt in an 8884366 EMU wide frame (measured)
+# At ~6.5px/char and 96dpi, frame width ~935px / ~7px per char at 8pt = ~130 chars/line
+_CHARS_PER_LINE = 130
+
 
 class ProfileRenderer:
     def __init__(self, template_path: Path, spec_path: Path):
@@ -15,20 +25,14 @@ class ProfileRenderer:
         prs = Presentation(str(self.template_path))
         slide_index = self.spec.get("slide_index", 0)
         slide = prs.slides[slide_index]
-        # Build replacements: KEY_PROJECTS stored separately as line_specs (list of tuples)
-        # to avoid polluting the string-replacement dict with a non-string value
         text_replacements = self._build_text_replacements(profile)
         projects_lines = self._build_projects_block(profile.experience)
         for shape in slide.shapes:
             self._process_shape(shape, text_replacements, projects_lines)
         prs.save(str(output_path))
 
-    # ------------------------------------------------------------------
-    # Shape traversal
-    # ------------------------------------------------------------------
-
     def _process_shape(self, shape, text_replacements, projects_lines):
-        if shape.shape_type == 6:  # GROUP
+        if shape.shape_type == 6:
             try:
                 for child in shape.shapes:
                     self._process_shape(child, text_replacements, projects_lines)
@@ -38,12 +42,7 @@ class ProfileRenderer:
         if shape.has_text_frame:
             self._replace_in_shape(shape, text_replacements, projects_lines)
 
-    # ------------------------------------------------------------------
-    # Build replacements - KEY_PROJECTS kept separate (list, not string)
-    # ------------------------------------------------------------------
-
     def _build_text_replacements(self, profile: ProfileSchema) -> dict:
-        """String-only replacements. {{KEY_PROJECTS}} is intentionally excluded."""
         r = {}
         r["{{ROLE_TITLE}}"] = profile.role_title
         r["{{NAME}}"] = profile.name
@@ -56,34 +55,63 @@ class ProfileRenderer:
         r["{{TECHNOLOGIES}}"] = ", ".join(profile.technologies)
         return r
 
+    def _estimate_line_count(self, text: str, bold: bool) -> int:
+        """Estimate how many lines a text string will occupy in the frame."""
+        if not text:
+            return 1
+        chars_per_line = int(_CHARS_PER_LINE * 0.85) if bold else _CHARS_PER_LINE
+        import math
+        return max(1, math.ceil(len(text) / chars_per_line))
+
     def _build_projects_block(self, experience: list) -> list:
         """
-        Returns list of (text, bold, sz_or_None) tuples.
-        Handles both cases:
-          - employer with projects: project name (bold) + bullets
-          - employer with no projects: employer_bullets as indented lines
+        Returns list of (text, bold, sz_or_None) tuples, budget-capped to frame capacity.
+        Each project's content is a paragraph string that wraps naturally.
         """
-        lines = []
+        lines = []  # (text, bold, sz)
+        used = 0
+        capacity = _FRAME_CAPACITY - 1  # leave 1 line buffer
+
         for i, exp in enumerate(experience):
-            if i > 0:
-                lines.append(("", False, 800))  # blank line between employers
+            # Blank separator
+            sep_cost = 0 if i == 0 else 1
+            # Employer heading
             heading = f"{exp.employer} \u2013 {exp.role} / {exp.date_range}"
-            lines.append((heading, True, None))  # bold, inherit frame sz
+            heading_cost = self._estimate_line_count(heading, bold=True)
+
+            if used + sep_cost + heading_cost > capacity:
+                break
+
+            if i > 0:
+                lines.append(("", False, 800))
+                used += 1
+            lines.append((heading, True, None))
+            used += heading_cost
 
             if exp.projects:
                 for proj in exp.projects:
-                    lines.append((proj.project_name, True, 800))
-                    for b in proj.bullets:
-                        lines.append((f" {b}", False, 800))
-            else:
-                # Fallback: employer-level bullets
-                for b in exp.employer_bullets:
-                    lines.append((f" {b}", False, 800))
-        return lines
+                    proj_name_cost = 1
+                    content = getattr(proj, 'content', '') or ''
+                    content_cost = self._estimate_line_count(content, bold=False)
+                    block_cost = proj_name_cost + content_cost
 
-    # ------------------------------------------------------------------
-    # Per-shape replacement
-    # ------------------------------------------------------------------
+                    if used + block_cost > capacity:
+                        break
+
+                    lines.append((proj.project_name, True, 800))
+                    used += 1
+                    if content:
+                        lines.append((content, False, 800))
+                        used += content_cost
+            else:
+                for b in exp.employer_bullets:
+                    b_cost = self._estimate_line_count(b, bold=False)
+                    if used + b_cost > capacity:
+                        break
+                    lines.append((f" {b}", False, 800))
+                    used += b_cost
+
+        return lines
 
     def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list):
         tf = shape.text_frame
@@ -133,10 +161,6 @@ class ProfileRenderer:
                     for i in range(start + 1, end):
                         runs[i].text = ""
                     return
-
-    # ------------------------------------------------------------------
-    # KEY_PROJECTS: rebuild text frame
-    # ------------------------------------------------------------------
 
     def _rebuild_projects_block(self, anchor_para, line_specs: list):
         tf_elem = anchor_para._p.getparent()

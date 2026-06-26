@@ -5,7 +5,7 @@ from typing import Optional
 class ProjectEntry(BaseModel):
     project_name: str
     date_range: str
-    bullets: list[str]
+    content: str  # synthesized paragraph or 1-2 sentence summary, not a bullet list
 
 
 class ExperienceEntry(BaseModel):
