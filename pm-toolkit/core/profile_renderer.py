@@ -14,24 +14,24 @@ _LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)
 _FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
 _CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line
 
-# Global font applied to all generated/replaced text
 _FONT             = "Arial"
-_CONTENT_SZ       = 800   # 8pt in half-points
+_CONTENT_SZ       = 800   # KEY_PROJECTS body: Arial 8pt
+_BODY_SZ          = 900   # PROFILE / EDUCATION / TECHNOLOGIES / METHODOLOGIES: Arial 9pt
 
-# Tokens that should have Arial applied after replacement
-_FONT_PATCHED_TOKENS = {
+# Tokens whose shapes get Arial 9pt after replacement
+_BODY_TOKENS = {
     "{{PROFILE}}",
     "{{EDUCATION}}",
     "{{METHODOLOGIES}}",
     "{{TECHNOLOGIES}}",
-    "{{ROLE_TITLE}}",
-    "{{NAME}}",
-    "{{ROLE_SUBTITLE}}",
+}
+
+# Tokens whose shapes get Arial font only (size inherited from template)
+_FONT_ONLY_TOKENS = {
+    "{{ROLE_TITLE}}", "{{NAME}}", "{{ROLE_SUBTITLE}}",
     "{{COMP_1}}", "{{COMP_2}}", "{{COMP_3}}", "{{COMP_4}}",
     "{{COMP_5}}", "{{COMP_6}}", "{{COMP_7}}", "{{COMP_8}}",
 }
-
-_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 class ProfileRenderer:
@@ -45,28 +45,38 @@ class ProfileRenderer:
         slide = prs.slides[slide_index]
         text_replacements = self._build_text_replacements(profile)
         projects_lines = self._build_projects_block(profile.experience)
-        # Track which shapes had tokens replaced so we can patch fonts
-        patched_shapes = set()
+
+        body_patched = set()       # shapes needing Arial 9pt
+        font_only_patched = set()  # shapes needing Arial only (size inherited)
+
         for shape in slide.shapes:
-            self._process_shape(shape, text_replacements, projects_lines, patched_shapes)
-        # Apply Arial to all runs in shapes that had token replacements
+            self._process_shape(shape, text_replacements, projects_lines,
+                                body_patched, font_only_patched)
+
         for shape in slide.shapes:
-            if id(shape) in patched_shapes:
-                self._patch_font_in_shape(shape)
+            if id(shape) in body_patched:
+                self._patch_font_in_shape(shape, sz=_BODY_SZ)
+            elif id(shape) in font_only_patched:
+                self._patch_font_in_shape(shape, sz=None)
+
         prs.save(str(output_path))
 
-    def _process_shape(self, shape, text_replacements, projects_lines, patched_shapes):
+    def _process_shape(self, shape, text_replacements, projects_lines,
+                       body_patched, font_only_patched):
         if shape.shape_type == 6:
             try:
                 for child in shape.shapes:
-                    self._process_shape(child, text_replacements, projects_lines, patched_shapes)
+                    self._process_shape(child, text_replacements, projects_lines,
+                                        body_patched, font_only_patched)
             except Exception:
                 pass
             return
         if shape.has_text_frame:
-            replaced = self._replace_in_shape(shape, text_replacements, projects_lines)
-            if replaced:
-                patched_shapes.add(id(shape))
+            tokens_found = self._replace_in_shape(shape, text_replacements, projects_lines)
+            if tokens_found & _BODY_TOKENS:
+                body_patched.add(id(shape))
+            elif tokens_found & _FONT_ONLY_TOKENS:
+                font_only_patched.add(id(shape))
 
     def _build_text_replacements(self, profile: ProfileSchema) -> dict:
         r = {}
@@ -81,8 +91,8 @@ class ProfileRenderer:
         r["{{TECHNOLOGIES}}"] = ", ".join(profile.technologies)
         return r
 
-    def _patch_font_in_shape(self, shape):
-        """Set Arial on every run in the shape's text frame."""
+    def _patch_font_in_shape(self, shape, sz: int | None):
+        """Set Arial (and optionally a specific size) on every run in the shape."""
         if not shape.has_text_frame:
             return
         for para in shape.text_frame.paragraphs:
@@ -90,15 +100,15 @@ class ProfileRenderer:
                 rPr = run._r.find(qn('a:rPr'))
                 if rPr is None:
                     rPr = etree.SubElement(run._r, qn('a:rPr'))
-                    run._r.insert(0, rPr)  # rPr must be first child
-                # Remove existing latin/ea/cs font elements
+                    run._r.insert(0, rPr)
                 for tag in ['a:latin', 'a:ea', 'a:cs']:
                     existing = rPr.find(qn(tag))
                     if existing is not None:
                         rPr.remove(existing)
-                # Insert Arial as latin typeface
                 latin = etree.SubElement(rPr, qn('a:latin'))
                 latin.set('typeface', _FONT)
+                if sz is not None:
+                    rPr.set('sz', str(sz))
 
     def _estimate_lines(self, text: str, bold: bool = False) -> int:
         if not text:
@@ -155,10 +165,10 @@ class ProfileRenderer:
 
         return lines
 
-    def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list) -> bool:
-        """Returns True if any replacement was made."""
+    def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list) -> set:
+        """Returns set of token keys found in this shape."""
         tf = shape.text_frame
-        replaced = False
+        found_tokens = set()
         for para in tf.paragraphs:
             via_xml = "".join(
                 (t.text or "") for t in para._p.iter() if t.tag.endswith("}t")
@@ -167,10 +177,13 @@ class ProfileRenderer:
                 continue
             if "{{KEY_PROJECTS}}" in via_xml:
                 self._rebuild_projects_block(para, projects_lines)
-                return True
+                found_tokens.add("{{KEY_PROJECTS}}")
+                return found_tokens
+            for token in text_replacements:
+                if token in via_xml:
+                    found_tokens.add(token)
             self._apply_replacements_to_para(para, text_replacements)
-            replaced = True
-        return replaced
+        return found_tokens
 
     def _apply_replacements_to_para(self, para, replacements: dict):
         runs = para.runs
