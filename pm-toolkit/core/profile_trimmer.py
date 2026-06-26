@@ -2,12 +2,12 @@ from core.profile_schema import ProfileSchema
 
 GENERIC_PHRASES = {"responsible for", "worked on", "involved in"}
 
-# Frame: 36 lines capacity. Layout uses ~25 lines leaving 11 buffer for content wrapping.
-# Content char limits set to use that space well without overflowing.
-MAX_PROJECTS       = [4, 2, 0]
-MAX_EMPLOYER_BULLETS = [2, 2, 2]
-MAX_CONTENT_CHARS  = [320, 250, 0]   # project paragraph per tier
-MAX_BULLET_CHARS   = 180             # employer_bullets
+# Trimmer enforces hard ceilings AFTER AI extraction.
+# AI is instructed to write 300-400 chars per project; trimmer clips at 420 as safety net.
+MAX_PROJECTS         = [4, 2, 0]
+MAX_EMPLOYER_BULLETS = [2, 2, 3]
+MAX_CONTENT_CHARS    = [420, 320, 0]
+MAX_BULLET_CHARS     = 200
 
 
 def _trim_end(text: str, max_chars: int) -> str:

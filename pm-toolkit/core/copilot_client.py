@@ -1,13 +1,10 @@
 import time
 import requests
-from typing import Union
 
 GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com/chat/completions"
 
 # Max characters of raw source text sent to the AI.
-# GitHub Models free tier allows ~16k tokens total (system + user).
-# System prompt is ~1200 tokens; leaving ~12k tokens for user text.
-# At ~4 chars/token, 48000 chars is a safe ceiling.
+# At ~4 chars/token, 48000 chars leaves ample room within the 128k context window.
 MAX_RAW_TEXT_CHARS = 48_000
 
 
@@ -40,14 +37,14 @@ class CopilotClient:
                 continue
             resp.raise_for_status()
             return resp.json()
-        resp.raise_for_status()  # final raise if all retries exhausted
+        resp.raise_for_status()
 
     def complete(self, system: str, user: str) -> str:
-        # Truncate source text to avoid exceeding token limits
         if len(user) > MAX_RAW_TEXT_CHARS:
             user = user[:MAX_RAW_TEXT_CHARS]
         payload = {
             "model": self.model,
+            "max_tokens": 4096,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
@@ -56,13 +53,9 @@ class CopilotClient:
         return self._post(payload)["choices"][0]["message"]["content"]
 
     def complete_multimodal(self, system: str, content: list) -> str:
-        """
-        content: list of dicts, each either:
-          {"type": "text", "text": "..."}
-          {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
-        """
         payload = {
             "model": self.model,
+            "max_tokens": 4096,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": content},

@@ -11,7 +11,11 @@ _FRAME_HEIGHT_EMU = 4212238
 _FRAME_WIDTH_EMU  = 8884366
 _LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)    # 8pt + 15% spacing
 _FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
-_CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line at 8pt
+_CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line at 8pt Arial
+
+# Font forced to Arial 8pt for all KEY_PROJECTS content
+_CONTENT_FONT     = "Arial"
+_CONTENT_SZ       = 800   # half-points (800 = 8pt)
 
 
 class ProfileRenderer:
@@ -54,32 +58,32 @@ class ProfileRenderer:
         return r
 
     def _estimate_lines(self, text: str, bold: bool = False) -> int:
-        """Estimate wrapped line count for a string in the frame."""
         if not text:
             return 1
-        # Bullet-format content: each \n-separated line wraps independently
         if '\n' in text:
-            total = 0
-            for segment in text.split('\n'):
-                total += self._estimate_lines(segment.strip(), bold)
-            return max(total, 1)
+            return max(1, sum(self._estimate_lines(s.strip(), bold) for s in text.split('\n') if s.strip()))
         cpl = int(_CHARS_PER_LINE * 0.82) if bold else _CHARS_PER_LINE
         return max(1, math.ceil(len(text) / cpl))
 
-    def _content_to_line_specs(self, content: str, sz: int) -> list:
+    def _content_to_line_specs(self, content: str) -> list:
         """
-        Convert a content string to (text, bold, sz) tuples.
-        If content uses bullet format (lines separated by \n), emit each line separately.
-        Otherwise emit as a single wrapped paragraph.
+        Convert content string to (text, bold, sz) tuples.
+        Handles plain paragraphs, \n-separated bullet lines, and mixed formats.
+        Font is always Arial 8pt for content lines.
         """
-        if '\n' in content:
-            return [(line.strip(), False, sz) for line in content.split('\n') if line.strip()]
-        return [(content, False, sz)]
+        if not content:
+            return []
+        specs = []
+        for segment in content.split('\n'):
+            segment = segment.strip()
+            if segment:
+                specs.append((segment, False, _CONTENT_SZ))
+        return specs
 
     def _build_projects_block(self, experience: list) -> list:
         lines = []
         used = 0
-        capacity = _FRAME_CAPACITY - 1  # 1-line safety buffer
+        capacity = _FRAME_CAPACITY - 1  # 1-line safety buffer = 35
 
         for i, exp in enumerate(experience):
             sep_cost = 0 if i == 0 else 1
@@ -90,28 +94,28 @@ class ProfileRenderer:
                 break
 
             if i > 0:
-                lines.append(("", False, 800))
+                lines.append(("", False, _CONTENT_SZ))
                 used += 1
-            lines.append((heading, True, None))
+            lines.append((heading, True, None))  # heading inherits template font/size
             used += heading_cost
 
             if exp.projects:
                 for proj in exp.projects:
                     content = getattr(proj, 'content', '') or ''
-                    content_specs = self._content_to_line_specs(content, 800)
+                    content_specs = self._content_to_line_specs(content)
                     content_cost = sum(self._estimate_lines(t) for t, _, _ in content_specs)
-                    block_cost = 1 + content_cost  # project name + content
+                    block_cost = 1 + content_cost  # project name line + content
 
                     if used + block_cost > capacity:
                         break
 
-                    lines.append((proj.project_name, True, 800))
+                    lines.append((proj.project_name, True, _CONTENT_SZ))
                     used += 1
                     lines.extend(content_specs)
                     used += content_cost
             else:
                 for b in exp.employer_bullets:
-                    b_specs = self._content_to_line_specs(b, 800)
+                    b_specs = self._content_to_line_specs(b)
                     b_cost = sum(self._estimate_lines(t) for t, _, _ in b_specs)
                     if used + b_cost > capacity:
                         break
@@ -173,8 +177,8 @@ class ProfileRenderer:
         tf_elem = anchor_para._p.getparent()
         existing_paras = tf_elem.findall(qn('a:p'))
 
+        # Read color from template anchor paragraph
         base_color = None
-        base_typeface = None
         ref_runs = anchor_para._p.findall('.//' + qn('a:r'))
         if ref_runs:
             rPr = ref_runs[0].find(qn('a:rPr'))
@@ -184,23 +188,24 @@ class ProfileRenderer:
                     srgb = sf.find(qn('a:srgbClr'))
                     if srgb is not None:
                         base_color = srgb.get('val')
-                lat = rPr.find(qn('a:latin'))
-                if lat is not None:
-                    base_typeface = lat.get('typeface')
 
         for p in existing_paras:
             tf_elem.remove(p)
 
         def _make_p(text, bold, sz):
             color_xml = f'<a:solidFill><a:srgbClr val="{base_color}"/></a:solidFill>' if base_color else ""
+            # sz=None means heading: inherit from template (no explicit sz attr)
             sz_xml = f' sz="{sz}"' if sz is not None else ''
             b_xml = ' b="1"' if bold else ' b="0"'
-            lat_xml = f'<a:latin typeface="{base_typeface}"/>' if base_typeface else ''
+            # Always use Arial for content; headings also get Arial for consistency
             safe = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return parse_xml(
                 f'<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
                 f'<a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr>'
-                f'<a:r><a:rPr lang="en-US"{sz_xml}{b_xml} dirty="0">{color_xml}{lat_xml}</a:rPr>'
+                f'<a:r><a:rPr lang="en-US"{sz_xml}{b_xml} dirty="0">'
+                f'{color_xml}'
+                f'<a:latin typeface="Arial"/>'
+                f'</a:rPr>'
                 f'<a:t>{safe}</a:t></a:r></a:p>'
             )
 
