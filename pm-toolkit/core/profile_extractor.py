@@ -24,13 +24,13 @@ EXPERIENCE PRIORITY STRATEGY (critical):
 1. MOST RECENT EMPLOYER: Extract in full detail.
    - Include up to 4 named projects (or theme-grouped projects if no explicit names).
    - Each project gets up to 3 bullets — synthesize achievements + responsibilities into rich, specific statements.
-   - If the employer has no explicit project names, group activities into 2–4 meaningful named themes (e.g. "Cloud Infrastructure Migration", "Team Leadership & Delivery").
+   - If the employer has no explicit project names, group activities into 2–4 meaningful named themes.
 2. SECOND MOST RECENT EMPLOYER: Include up to 2 projects, up to 2 bullets each.
 3. ALL REMAINING EMPLOYERS: Aggregate into a single synthetic entry:
    - employer: "Previous Experience"
    - role: one-line summary of roles held (e.g. "Senior Developer, Tech Lead — multiple clients")
    - date_range: earliest start year to end year of the block
-   - employer_bullets: 2–3 bullets that synthesize the most important facts across all remaining employers (technologies, scale, industries, notable achievements)
+   - employer_bullets: 2–3 bullets synthesizing the most important facts across all remaining employers
    - projects: empty list
 
 PROJECT EXTRACTION RULES:
@@ -87,12 +87,6 @@ def _cell_text(cell) -> str:
 
 
 def _extract_docx_text(file_path: Path) -> str:
-    """
-    Extract text from a docx preserving table structure.
-    For multi-row spanning tables (common in CV templates where employer is in column 0
-    and projects are in column 1 across many rows), we emit the full cell content
-    of each unique cell exactly once, grouped by row so context is preserved.
-    """
     from docx import Document
     from docx.text.paragraph import Paragraph
     from docx.table import Table
