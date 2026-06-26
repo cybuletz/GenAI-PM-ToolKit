@@ -2,14 +2,11 @@ from core.profile_schema import ProfileSchema
 
 GENERIC_PHRASES = {"responsible for", "worked on", "involved in"}
 
-# Measured capacity: 4386 chars at Arial 10pt fills the frame.
-# At Arial 8pt (scaled 10/8): ~5482 chars available.
-# 6 projects across 2 employers, structure overhead ~12 lines.
-# Per-project content budget: ~680 chars at 8pt.
-# Trimmer ceilings are set slightly above AI targets as safety net only.
-MAX_PROJECTS         = [4, 2, 0]
-MAX_EMPLOYER_BULLETS = [2, 2, 3]
-MAX_CONTENT_CHARS    = [680, 560, 0]   # entry 1: 4 lines, entry 2: ~3 lines
+# 2-entry structure: current employer (up to 5 projects) + previous summary (1 project)
+# Frame budget: ~5500 chars at 8pt. Current employer gets the bulk.
+MAX_PROJECTS         = [5, 1]      # current: 5 projects, previous summary: 1
+MAX_EMPLOYER_BULLETS = [0, 0]      # no employer-level bullets; content goes in projects
+MAX_CONTENT_CHARS    = [650, 600]  # per project content ceiling
 MAX_BULLET_CHARS     = 200
 
 
@@ -50,22 +47,18 @@ class ProfileTrimmer:
         data["certifications"] = data.get("certifications", [])[:3]
 
         trimmed_exp = []
-        for idx, entry in enumerate(data["experience"][:3]):
-            max_proj = MAX_PROJECTS[idx]
-            max_eb   = MAX_EMPLOYER_BULLETS[idx]
-            max_cc   = MAX_CONTENT_CHARS[idx]
+        for idx, entry in enumerate(data["experience"][:2]):
+            max_proj = MAX_PROJECTS[idx] if idx < len(MAX_PROJECTS) else 1
+            max_cc   = MAX_CONTENT_CHARS[idx] if idx < len(MAX_CONTENT_CHARS) else 400
 
-            eb = [b for b in entry["employer_bullets"] if not _is_generic(b)]
-            entry["employer_bullets"] = [_trim_end(b, MAX_BULLET_CHARS) for b in eb[:max_eb]]
+            # No employer-level bullets in this structure
+            entry["employer_bullets"] = []
 
-            if max_proj == 0:
-                entry["projects"] = []
-            else:
-                trimmed_projects = []
-                for proj in entry["projects"][:max_proj]:
-                    proj["content"] = _trim_end(proj.get("content", ""), max_cc)
-                    trimmed_projects.append(proj)
-                entry["projects"] = trimmed_projects
+            trimmed_projects = []
+            for proj in entry["projects"][:max_proj]:
+                proj["content"] = _trim_end(proj.get("content", ""), max_cc)
+                trimmed_projects.append(proj)
+            entry["projects"] = trimmed_projects
 
             trimmed_exp.append(entry)
 
