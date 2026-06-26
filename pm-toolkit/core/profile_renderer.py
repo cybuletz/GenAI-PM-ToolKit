@@ -14,11 +14,10 @@ _LINE_HEIGHT_EMU  = int(8 * 12700 * 1.15)
 _FRAME_CAPACITY   = _FRAME_HEIGHT_EMU // _LINE_HEIGHT_EMU  # 36 lines
 _CHARS_PER_LINE   = int((_FRAME_WIDTH_EMU / 914400) * 17)  # ~165 chars/line
 
-_FONT             = "Arial"
-_CONTENT_SZ       = 800   # KEY_PROJECTS body: Arial 8pt
-_BODY_SZ          = 900   # PROFILE / EDUCATION / TECHNOLOGIES / METHODOLOGIES: Arial 9pt
+_FONT             = "Arial"  # applied to all generated/replaced text
+_BODY_SZ          = 800      # Arial 8pt for PROFILE, EDUCATION, TECHNOLOGIES, METHODOLOGIES, KEY_PROJECTS
 
-# Tokens whose shapes get Arial 9pt after replacement
+# Tokens whose shapes get Arial 8pt after replacement
 _BODY_TOKENS = {
     "{{PROFILE}}",
     "{{EDUCATION}}",
@@ -46,8 +45,8 @@ class ProfileRenderer:
         text_replacements = self._build_text_replacements(profile)
         projects_lines = self._build_projects_block(profile.experience)
 
-        body_patched = set()       # shapes needing Arial 9pt
-        font_only_patched = set()  # shapes needing Arial only (size inherited)
+        body_patched = set()
+        font_only_patched = set()
 
         for shape in slide.shapes:
             self._process_shape(shape, text_replacements, projects_lines,
@@ -121,7 +120,7 @@ class ProfileRenderer:
     def _content_to_line_specs(self, content: str) -> list:
         if not content:
             return []
-        return [(seg.strip(), False, _CONTENT_SZ) for seg in content.split('\n') if seg.strip()]
+        return [(seg.strip(), False, _BODY_SZ) for seg in content.split('\n') if seg.strip()]
 
     def _build_projects_block(self, experience: list) -> list:
         lines = []
@@ -137,7 +136,7 @@ class ProfileRenderer:
                 break
 
             if i > 0:
-                lines.append(("", False, _CONTENT_SZ))
+                lines.append(("", False, _BODY_SZ))
                 used += 1
             lines.append((heading, True, None))
             used += heading_cost
@@ -150,7 +149,7 @@ class ProfileRenderer:
                     block_cost = 1 + content_cost
                     if used + block_cost > capacity:
                         break
-                    lines.append((proj.project_name, True, _CONTENT_SZ))
+                    lines.append((proj.project_name, True, _BODY_SZ))
                     used += 1
                     lines.extend(content_specs)
                     used += content_cost
@@ -166,7 +165,6 @@ class ProfileRenderer:
         return lines
 
     def _replace_in_shape(self, shape, text_replacements: dict, projects_lines: list) -> set:
-        """Returns set of token keys found in this shape."""
         tf = shape.text_frame
         found_tokens = set()
         for para in tf.paragraphs:
